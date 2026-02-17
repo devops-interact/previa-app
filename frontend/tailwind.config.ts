@@ -10,13 +10,19 @@ const config: Config = {
         extend: {
             colors: {
                 previa: {
-                    background: '#F3F6FC', // Lighter, cleaner background
-                    surface: '#FFFFFF',    // White surface for cards/sidebar as seen in screenshot
-                    'primary-light': '#E8EFFC',
-                    accent: '#F3F4F6',     // Subtle gray/white for active states
-                    muted: '#94A3B8',      // Slate-400 for muted text
-                    ink: '#1E293B',        // Slate-800 for main text
-                    navy: '#2563EB',       // Brighter blue for logo (as seen in screenshot)
+                    background: '#0a0a0f',
+                    surface: '#111118',
+                    'surface-hover': '#1a1a24',
+                    'primary-light': '#1e2a3a',
+                    border: '#2a2a3a',
+                    accent: '#3b82f6',
+                    'accent-glow': '#60a5fa',
+                    muted: '#6b7280',
+                    ink: '#e2e8f0',
+                    navy: '#3b82f6',
+                    danger: '#ef4444',
+                    warning: '#f59e0b',
+                    success: '#22c55e',
                 },
             },
             fontFamily: {

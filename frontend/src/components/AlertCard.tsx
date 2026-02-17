@@ -15,54 +15,49 @@ interface AlertCardProps {
 
 const severityConfig = {
     CRITICAL: {
-        bg: 'bg-red-50',
-        border: 'border-red-200',
+        bg: 'bg-red-500/10',
+        border: 'border-red-500/30',
+        glow: 'shadow-red-500/10',
         iconBg: 'bg-red-500',
-        textPrimary: 'text-red-900',
-        textSecondary: 'text-red-800',
-        textTertiary: 'text-red-700',
-        badge: 'bg-red-100 text-red-800',
-        dismissHover: 'hover:text-red-600'
+        textPrimary: 'text-red-400',
+        textSecondary: 'text-red-300',
+        textTertiary: 'text-red-400/70',
     },
     HIGH: {
-        bg: 'bg-orange-50',
-        border: 'border-orange-200',
+        bg: 'bg-orange-500/10',
+        border: 'border-orange-500/30',
+        glow: 'shadow-orange-500/10',
         iconBg: 'bg-orange-500',
-        textPrimary: 'text-orange-900',
-        textSecondary: 'text-orange-800',
-        textTertiary: 'text-orange-700',
-        badge: 'bg-orange-100 text-orange-800',
-        dismissHover: 'hover:text-orange-600'
+        textPrimary: 'text-orange-400',
+        textSecondary: 'text-orange-300',
+        textTertiary: 'text-orange-400/70',
     },
     MEDIUM: {
-        bg: 'bg-yellow-50',
-        border: 'border-yellow-200',
+        bg: 'bg-yellow-500/10',
+        border: 'border-yellow-500/30',
+        glow: 'shadow-yellow-500/10',
         iconBg: 'bg-yellow-500',
-        textPrimary: 'text-yellow-900',
-        textSecondary: 'text-yellow-800',
-        textTertiary: 'text-yellow-700',
-        badge: 'bg-yellow-100 text-yellow-800',
-        dismissHover: 'hover:text-yellow-600'
+        textPrimary: 'text-yellow-400',
+        textSecondary: 'text-yellow-300',
+        textTertiary: 'text-yellow-400/70',
     },
     LOW: {
-        bg: 'bg-blue-50',
-        border: 'border-blue-200',
+        bg: 'bg-blue-500/10',
+        border: 'border-blue-500/30',
+        glow: 'shadow-blue-500/10',
         iconBg: 'bg-blue-500',
-        textPrimary: 'text-blue-900',
-        textSecondary: 'text-blue-800',
-        textTertiary: 'text-blue-700',
-        badge: 'bg-blue-100 text-blue-800',
-        dismissHover: 'hover:text-blue-600'
+        textPrimary: 'text-blue-400',
+        textSecondary: 'text-blue-300',
+        textTertiary: 'text-blue-400/70',
     },
     INFO: {
-        bg: 'bg-gray-50',
-        border: 'border-gray-200',
+        bg: 'bg-gray-500/10',
+        border: 'border-gray-500/30',
+        glow: 'shadow-gray-500/10',
         iconBg: 'bg-gray-500',
-        textPrimary: 'text-gray-900',
-        textSecondary: 'text-gray-800',
-        textTertiary: 'text-gray-700',
-        badge: 'bg-gray-100 text-gray-800',
-        dismissHover: 'hover:text-gray-600'
+        textPrimary: 'text-gray-400',
+        textSecondary: 'text-gray-300',
+        textTertiary: 'text-gray-400/70',
     }
 }
 
@@ -78,7 +73,7 @@ export function AlertCard({ severity, article, rfc, entityName, status, onDismis
     if (dismissed) return null
 
     return (
-        <div className={`${config.bg} rounded-xl p-4 flex items-start space-x-4 shadow-sm border border-transparent hover:shadow-md transition-shadow`}>
+        <div className={`${config.bg} rounded-xl p-4 flex items-start space-x-4 border ${config.border} shadow-lg ${config.glow} hover:shadow-xl transition-shadow`}>
             {/* Icon Box */}
             <div className={`flex-shrink-0 w-10 h-10 ${config.iconBg} rounded-lg flex items-center justify-center shadow-sm`}>
                 <AlertTriangle className="w-5 h-5 text-white" />
@@ -94,7 +89,7 @@ export function AlertCard({ severity, article, rfc, entityName, status, onDismis
                         <p className={`text-xs font-mono font-semibold ${config.textSecondary} mb-0.5`}>
                             {rfc}
                         </p>
-                        <p className={`text-xs ${config.textTertiary} uppercase tracking-wide opacity-80 truncate`}>
+                        <p className={`text-xs ${config.textTertiary} uppercase tracking-wide truncate`}>
                             {entityName}
                         </p>
                     </div>

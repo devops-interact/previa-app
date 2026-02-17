@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { JetBrains_Mono } from "next/font/google"
 import "./globals.css"
-import { Navbar } from "@/components/navbar"
 
 const jetbrainsMono = JetBrains_Mono({
     subsets: ["latin"],
@@ -20,7 +19,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="es" className={jetbrainsMono.variable}>
-            <body className="min-h-screen bg-previa-background">
+            <body className="min-h-screen bg-previa-background text-previa-ink">
                 {children}
             </body>
         </html>

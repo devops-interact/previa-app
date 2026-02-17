@@ -11,7 +11,7 @@ export function Sidebar() {
     const [organizacionesOpen, setOrganizacionesOpen] = useState(false)
 
     const handleLogout = () => {
-        localStorage.removeItem('demo_auth')
+        localStorage.removeItem('previa_auth')
         router.push('/')
     }
 
@@ -48,17 +48,17 @@ export function Sidebar() {
     ]
 
     return (
-        <aside className="w-64 bg-previa-surface border-r border-previa-muted flex flex-col h-screen">
+        <aside className="w-64 bg-previa-surface border-r border-previa-border flex flex-col h-screen">
             {/* Logo */}
-            <div className="p-6 border-b border-previa-muted">
-                <Link href="/tablero" className="text-2xl font-bold text-previa-navy">
-                    PREVIA.APP
+            <div className="p-6 border-b border-previa-border">
+                <Link href="/tablero" className="text-2xl font-bold text-previa-accent tracking-tight">
+                    PREV.IA
                 </Link>
             </div>
 
             {/* User Info */}
-            <div className="p-4 border-b border-previa-muted flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-previa-navy text-white flex items-center justify-center font-semibold">
+            <div className="p-4 border-b border-previa-border flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-previa-accent/20 text-previa-accent flex items-center justify-center font-semibold text-sm">
                     U
                 </div>
                 <div>
@@ -73,7 +73,7 @@ export function Sidebar() {
                         {section.expandable ? (
                             <button
                                 onClick={() => setOrganizacionesOpen(!organizacionesOpen)}
-                                className="w-full flex items-center justify-between text-sm font-medium text-previa-ink mb-2 hover:text-previa-navy transition-colors"
+                                className="w-full flex items-center justify-between text-sm font-medium text-previa-ink mb-2 hover:text-previa-accent transition-colors"
                             >
                                 <span>{section.title}</span>
                                 <ChevronDown className={`w-4 h-4 transition-transform ${organizacionesOpen ? 'rotate-180' : ''}`} />
@@ -94,7 +94,7 @@ export function Sidebar() {
                                         <li key={itemIdx}>
                                             <button
                                                 onClick={item.onClick}
-                                                className="w-full flex items-center space-x-2 px-3 py-2 rounded-md text-sm hover:bg-previa-primary-light transition-colors text-previa-ink"
+                                                className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-sm hover:bg-previa-surface-hover transition-colors text-previa-muted hover:text-previa-ink"
                                             >
                                                 {Icon && <Icon className="w-4 h-4" />}
                                                 <span>{item.label}</span>
@@ -110,9 +110,9 @@ export function Sidebar() {
                                     <li key={itemIdx}>
                                         <Link
                                             href={href || '#'}
-                                            className={`flex items-center justify-between px-4 py-2 my-1 rounded-r-full mr-4 text-sm transition-all duration-200 ${isActive
-                                                ? 'bg-previa-accent text-previa-ink font-bold shadow-sm translate-x-1'
-                                                : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface'
+                                            className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all duration-200 ${isActive
+                                                ? 'bg-previa-accent/10 text-previa-accent font-semibold border border-previa-accent/20'
+                                                : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
                                                 }`}
                                         >
                                             <div className="flex items-center space-x-2">

@@ -3,18 +3,19 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
+import { GeometricBackground } from '@/components/GeometricBackground'
 
 export default function HomePage() {
     const router = useRouter()
-    const [email, setEmail] = useState('user@product.test')
-    const [password, setPassword] = useState('1234')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
     const [error, setError] = useState('')
+    const [showDemo, setShowDemo] = useState(false)
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
 
-        // 1. Check Demo Account
         if (email === 'user@product.test' && password === '1234') {
             localStorage.setItem('previa_auth', JSON.stringify({
                 user: { email: 'user@product.test', organization: 'Demo Corp' },
@@ -24,7 +25,6 @@ export default function HomePage() {
             return
         }
 
-        // 2. Check Registered Users (LocalStorage for MVP)
         try {
             const users = JSON.parse(localStorage.getItem('previa_users') || '[]')
             const user = users.find((u: any) => u.email === email && u.password === password)
@@ -41,80 +41,95 @@ export default function HomePage() {
             console.error('Login error', err)
         }
 
-        // 3. Login Failed
-        setError('Invalid credentials. Use demo account or register a new one.')
+        setError('Credenciales inválidas. Usa la cuenta demo o registra una nueva.')
     }
 
     return (
-        <div className="min-h-[80vh] flex items-center justify-center">
-            <div className="w-full max-w-md">
-                <div className="bg-previa-surface rounded-lg shadow-lg p-8">
-                    <div className="text-center mb-8">
-                        <h1 className="text-4xl font-bold text-previa-navy mb-2">PREV.IA</h1>
-                        <p className="text-previa-ink opacity-75">
-                            Fiscal Compliance Screening Agent
-                        </p>
-                    </div>
+        <div className="min-h-screen bg-previa-background relative overflow-hidden">
+            <GeometricBackground />
 
-                    <form onSubmit={handleLogin} className="space-y-6">
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-previa-ink mb-2">
-                                Email
-                            </label>
-                            <input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-2 bg-previa-background border border-previa-muted rounded-md focus:outline-none focus:ring-2 focus:ring-previa-accent"
-                                required
-                            />
+            <div className="relative z-10 min-h-screen flex items-center justify-center px-4">
+                <div className="w-full max-w-md">
+                    <div className="bg-previa-surface/80 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-previa-border p-8">
+                        {/* Branding */}
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-bold text-previa-accent mb-2 tracking-tight">
+                                PREV.IA
+                            </h1>
+                            <p className="text-previa-muted text-sm">
+                                Autonomous Fiscal Compliance Screening
+                            </p>
                         </div>
 
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-previa-ink mb-2">
-                                Password
-                            </label>
-                            <input
-                                id="password"
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-2 bg-previa-background border border-previa-muted rounded-md focus:outline-none focus:ring-2 focus:ring-previa-accent"
-                                required
-                            />
-                        </div>
-
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-                                {error}
+                        <form onSubmit={handleLogin} className="space-y-5">
+                            <div>
+                                <label htmlFor="email" className="block text-xs font-semibold text-previa-muted uppercase tracking-wider mb-2">
+                                    Email
+                                </label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="usuario@empresa.com"
+                                    className="w-full px-4 py-3 bg-previa-background border border-previa-border rounded-lg text-previa-ink placeholder-previa-muted/50 focus:outline-none focus:ring-2 focus:ring-previa-accent/50 focus:border-previa-accent transition-all"
+                                    required
+                                />
                             </div>
-                        )}
 
-                        <button
-                            type="submit"
-                            className="w-full bg-previa-navy text-white py-3 rounded-md hover:opacity-90 transition-opacity font-medium"
-                        >
-                            Sign In
-                        </button>
-                    </form>
+                            <div>
+                                <label htmlFor="password" className="block text-xs font-semibold text-previa-muted uppercase tracking-wider mb-2">
+                                    Password
+                                </label>
+                                <input
+                                    id="password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full px-4 py-3 bg-previa-background border border-previa-border rounded-lg text-previa-ink placeholder-previa-muted/50 focus:outline-none focus:ring-2 focus:ring-previa-accent/50 focus:border-previa-accent transition-all"
+                                    required
+                                />
+                            </div>
 
-                    <div className="mt-6 p-4 bg-previa-primary-light rounded-md">
-                        <p className="text-sm text-previa-ink">
-                            <strong>Demo Account:</strong><br />
-                            Email: user@product.test<br />
-                            Password: 1234
-                        </p>
-                    </div>
+                            {error && (
+                                <div className="bg-previa-danger/10 border border-previa-danger/30 text-previa-danger px-4 py-3 rounded-lg text-sm">
+                                    {error}
+                                </div>
+                            )}
 
-                    {/* Sign Up Link */}
-                    <div className="mt-6 text-center">
-                        <p className="text-sm text-previa-muted">
-                            ¿No tienes una cuenta?{' '}
-                            <Link href="/register" className="text-previa-navy font-semibold hover:underline">
-                                Crear Cuenta
-                            </Link>
-                        </p>
+                            <button
+                                type="submit"
+                                className="w-full bg-previa-accent text-white py-3 rounded-lg hover:bg-previa-accent-glow transition-colors font-semibold shadow-lg shadow-previa-accent/20"
+                            >
+                                Iniciar Sesión
+                            </button>
+                        </form>
+
+                        {/* Demo hint (collapsible) */}
+                        <div className="mt-5">
+                            <button
+                                onClick={() => setShowDemo(!showDemo)}
+                                className="text-xs text-previa-muted hover:text-previa-accent-glow transition-colors w-full text-center"
+                            >
+                                {showDemo ? 'Ocultar cuenta demo' : 'Mostrar cuenta demo'}
+                            </button>
+                            {showDemo && (
+                                <div className="mt-2 p-3 bg-previa-primary-light rounded-lg border border-previa-border text-xs text-previa-muted">
+                                    <p><span className="text-previa-ink font-semibold">Email:</span> user@product.test</p>
+                                    <p><span className="text-previa-ink font-semibold">Password:</span> 1234</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-6 text-center">
+                            <p className="text-sm text-previa-muted">
+                                ¿No tienes una cuenta?{' '}
+                                <Link href="/register" className="text-previa-accent font-semibold hover:text-previa-accent-glow transition-colors">
+                                    Crear Cuenta
+                                </Link>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

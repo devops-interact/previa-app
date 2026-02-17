@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import { apiClient } from '@/lib/api-client'
 import { Navbar } from '@/components/navbar'
+import { AuthGuard } from '@/components/AuthGuard'
 
 export default function DatasetPage() {
     const router = useRouter()
@@ -21,8 +22,6 @@ export default function DatasetPage() {
         try {
             const response = await apiClient.uploadScan(file)
             console.log('Scan created:', response)
-
-            // Redirect to tablero with scan_id
             router.push(`/tablero?scan_id=${response.scan_id}`)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to upload file')
@@ -43,24 +42,24 @@ export default function DatasetPage() {
     })
 
     return (
-        <>
+        <AuthGuard>
             <Navbar />
             <main className="container mx-auto px-4 py-6">
                 <div className="max-w-4xl mx-auto">
-                    <h1 className="text-3xl font-bold text-previa-navy mb-6">
-                        New Dataset / RFC Upload
+                    <h1 className="text-3xl font-bold text-previa-ink mb-6">
+                        Nuevo Dataset / Carga de RFCs
                     </h1>
 
-                    <div className="bg-previa-surface rounded-lg shadow-lg p-8">
+                    <div className="bg-previa-surface rounded-xl shadow-lg border border-previa-border p-8">
                         <h2 className="text-xl font-semibold text-previa-ink mb-4">
-                            Upload CSV or XLSX File
+                            Subir archivo CSV o XLSX
                         </h2>
 
                         <div
                             {...getRootProps()}
-                            className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${isDragActive
-                                ? 'border-previa-accent bg-previa-primary-light'
-                                : 'border-previa-muted hover:border-previa-accent hover:bg-previa-primary-light'
+                            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${isDragActive
+                                ? 'border-previa-accent bg-previa-accent/5'
+                                : 'border-previa-border hover:border-previa-accent hover:bg-previa-surface-hover'
                                 } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <input {...getInputProps()} />
@@ -69,16 +68,19 @@ export default function DatasetPage() {
                                 <div className="text-4xl">📄</div>
 
                                 {uploading ? (
-                                    <p className="text-lg text-previa-ink">Uploading...</p>
+                                    <div className="space-y-2">
+                                        <div className="w-8 h-8 border-2 border-previa-accent border-t-transparent rounded-full animate-spin mx-auto" />
+                                        <p className="text-lg text-previa-ink">Subiendo archivo...</p>
+                                    </div>
                                 ) : isDragActive ? (
-                                    <p className="text-lg text-previa-ink">Drop the file here...</p>
+                                    <p className="text-lg text-previa-accent">Suelta el archivo aquí...</p>
                                 ) : (
                                     <>
                                         <p className="text-lg text-previa-ink">
-                                            Drag and drop a CSV or XLSX file here, or click to select
+                                            Arrastra un archivo CSV o XLSX aquí, o haz clic para seleccionar
                                         </p>
                                         <p className="text-sm text-previa-muted">
-                                            Required columns: <code>rfc</code>, <code>razon_social</code>
+                                            Columnas requeridas: <code className="bg-previa-surface-hover px-1.5 py-0.5 rounded text-previa-accent text-xs">rfc</code>, <code className="bg-previa-surface-hover px-1.5 py-0.5 rounded text-previa-accent text-xs">razon_social</code>
                                         </p>
                                     </>
                                 )}
@@ -86,22 +88,22 @@ export default function DatasetPage() {
                         </div>
 
                         {error && (
-                            <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                            <div className="mt-4 bg-previa-danger/10 border border-previa-danger/30 text-previa-danger px-4 py-3 rounded-lg text-sm">
                                 {error}
                             </div>
                         )}
 
-                        <div className="mt-8 p-4 bg-previa-primary-light rounded-md">
-                            <h3 className="font-semibold text-previa-ink mb-2">File Format:</h3>
-                            <ul className="text-sm text-previa-ink space-y-1">
-                                <li>• <strong>Required:</strong> rfc, razon_social</li>
-                                <li>• <strong>Optional:</strong> tipo_persona, relacion, id_interno</li>
-                                <li>• Supported formats: CSV, XLSX, XLS</li>
+                        <div className="mt-8 p-4 bg-previa-primary-light rounded-lg border border-previa-border">
+                            <h3 className="font-semibold text-previa-ink mb-2">Formato del archivo:</h3>
+                            <ul className="text-sm text-previa-muted space-y-1">
+                                <li>• <span className="text-previa-ink font-medium">Requeridos:</span> rfc, razon_social</li>
+                                <li>• <span className="text-previa-ink font-medium">Opcionales:</span> tipo_persona, relacion, id_interno</li>
+                                <li>• Formatos soportados: CSV, XLSX, XLS</li>
                             </ul>
                         </div>
                     </div>
                 </div>
             </main>
-        </>
+        </AuthGuard>
     )
 }

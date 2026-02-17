@@ -33,21 +33,14 @@ bcrypt==4.1.2
 # --- Web Scraping (Phase 2) ---------------------------------
 playwright==1.41.0
 
-# --- Report Generation --------------------------------------
-# openpyxl already listed above for XLSX
-# WeasyPrint==61.0  # Uncomment for PDF generation (Phase 2)
-
-# --- Utilities ----------------------------------------------
 # --- Utilities ----------------------------------------------
 python-dotenv==1.0.1
 pydantic==2.5.3
 pydantic-settings>=2.1.0
 asyncpg
-httpx
 pypdf
 apscheduler>=3.10.0
 
 # --- Development & Testing ----------------------------------
 pytest==8.0.0
 pytest-asyncio==0.23.3
-httpx==0.26.0  # Already listed above

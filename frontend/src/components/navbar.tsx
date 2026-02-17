@@ -9,51 +9,47 @@ export function Navbar() {
     const router = useRouter()
 
     const handleLogout = () => {
-        localStorage.removeItem('demo_auth')
+        localStorage.removeItem('previa_auth')
         router.push('/')
     }
 
-    // Don't show navbar on login page
     if (pathname === '/') {
         return null
     }
 
     const navItems = [
-        { href: '/dataset', label: 'New Dataset' },
+        { href: '/dataset', label: 'Nuevo Dataset' },
         { href: '/tablero', label: 'Tablero' },
         { href: '/chat', label: 'Chat' },
     ]
 
     return (
-        <nav className="bg-previa-navy text-white shadow-lg">
+        <nav className="bg-previa-surface border-b border-previa-border shadow-lg shadow-black/20">
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-16">
-                    {/* Logo */}
-                    <Link href="/tablero" className="text-xl font-bold">
+                    <Link href="/tablero" className="text-xl font-bold text-previa-accent tracking-tight">
                         PREV.IA
                     </Link>
 
-                    {/* Navigation Links */}
-                    <div className="flex items-center space-x-6">
+                    <div className="flex items-center space-x-2">
                         {navItems.map((item) => (
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${pathname === item.href
-                                        ? 'bg-previa-accent text-previa-navy'
-                                        : 'hover:bg-previa-navy/80'
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${pathname === item.href
+                                        ? 'bg-previa-accent/10 text-previa-accent border border-previa-accent/20'
+                                        : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
                                     }`}
                             >
                                 {item.label}
                             </Link>
                         ))}
 
-                        {/* User Menu */}
                         <button
                             onClick={handleLogout}
-                            className="px-3 py-2 rounded-md text-sm font-medium hover:bg-previa-navy/80 transition-colors"
+                            className="px-4 py-2 rounded-lg text-sm font-medium text-previa-muted hover:text-previa-danger hover:bg-previa-danger/10 transition-all ml-2"
                         >
-                            Logout
+                            Salir
                         </button>
                     </div>
                 </div>
