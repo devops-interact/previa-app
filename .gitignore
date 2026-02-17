@@ -1,0 +1,64 @@
+# ============================================================
+# PREV.IA — Git Ignore (Monorepo)
+# ============================================================
+
+# --- Secrets & Credentials (CRITICAL) -----------------------
+.env
+.env.local
+.env.production
+*.pem
+*.key
+*.cert
+credentials.json
+
+# --- Python (backend/) --------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# --- Node.js (frontend/) ------------------------------------
+node_modules/
+.next/
+out/
+.vercel/
+
+# --- Data (cached SAT datasets — re-downloadable) -----------
+backend/data/sat/
+backend/data/previa.db
+backend/data/previa.db-journal
+
+# --- Generated Reports (user output) ------------------------
+backend/data/reports/
+
+# --- Deploy artifacts (may contain secrets) ------------------
+runpod-env.txt
+
+# --- Logs ----------------------------------------------------
+logs/
+*.log
+
+# --- Docker --------------------------------------------------
+.docker/
+
+# --- IDE & OS ------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Test / Coverage -----------------------------------------
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
