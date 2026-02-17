@@ -4,44 +4,37 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
 import { GeometricBackground } from '@/components/GeometricBackground'
+import { apiClient } from '@/lib/api-client'
 
 export default function HomePage() {
     const router = useRouter()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
+    const [loading, setLoading] = useState(false)
     const [showDemo, setShowDemo] = useState(false)
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
-
-        if (email === 'user@product.test' && password === '1234') {
-            localStorage.setItem('previa_auth', JSON.stringify({
-                user: { email: 'user@product.test', organization: 'Demo Corp' },
-                token: 'demo-token'
-            }))
-            router.push('/tablero')
-            return
-        }
+        setLoading(true)
 
         try {
-            const users = JSON.parse(localStorage.getItem('previa_users') || '[]')
-            const user = users.find((u: any) => u.email === email && u.password === password)
+            // Authenticate against the backend — receives a signed JWT
+            const auth = await apiClient.login(email.trim(), password)
 
-            if (user) {
-                localStorage.setItem('previa_auth', JSON.stringify({
-                    user: { email: user.email, organization: user.organization },
-                    token: 'user-token-' + user.id
-                }))
-                router.push('/tablero')
-                return
-            }
-        } catch (err) {
-            console.error('Login error', err)
+            // Persist the token for subsequent API calls (read by api-client.ts)
+            localStorage.setItem('previa_auth', JSON.stringify(auth))
+
+            router.push('/tablero')
+        } catch (err: unknown) {
+            const message = err instanceof Error
+                ? err.message
+                : 'Error al iniciar sesión. Intenta de nuevo.'
+            setError(message)
+        } finally {
+            setLoading(false)
         }
-
-        setError('Credenciales inválidas. Usa la cuenta demo o registra una nueva.')
     }
 
     return (
@@ -74,6 +67,8 @@ export default function HomePage() {
                                     placeholder="usuario@empresa.com"
                                     className="w-full px-4 py-3 bg-previa-background border border-previa-border rounded-lg text-previa-ink placeholder-previa-muted/50 focus:outline-none focus:ring-2 focus:ring-previa-accent/50 focus:border-previa-accent transition-all"
                                     required
+                                    disabled={loading}
+                                    autoComplete="email"
                                 />
                             </div>
 
@@ -89,6 +84,8 @@ export default function HomePage() {
                                     placeholder="••••••••"
                                     className="w-full px-4 py-3 bg-previa-background border border-previa-border rounded-lg text-previa-ink placeholder-previa-muted/50 focus:outline-none focus:ring-2 focus:ring-previa-accent/50 focus:border-previa-accent transition-all"
                                     required
+                                    disabled={loading}
+                                    autoComplete="current-password"
                                 />
                             </div>
 
@@ -100,9 +97,13 @@ export default function HomePage() {
 
                             <button
                                 type="submit"
-                                className="w-full bg-previa-accent text-white py-3 rounded-lg hover:bg-previa-accent-glow transition-colors font-semibold shadow-lg shadow-previa-accent/20"
+                                disabled={loading}
+                                className="w-full bg-previa-accent text-white py-3 rounded-lg hover:bg-previa-accent-glow transition-colors font-semibold shadow-lg shadow-previa-accent/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
-                                Iniciar Sesión
+                                {loading && (
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                )}
+                                {loading ? 'Autenticando...' : 'Iniciar Sesión'}
                             </button>
                         </form>
 

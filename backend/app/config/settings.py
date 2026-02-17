@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     alert_email_to: str = ""
     
+    # JWT Authentication
+    jwt_secret_key: str = "changeme-set-via-JWT_SECRET_KEY-env-var"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 480  # 8 hours
+
     # Application Settings
     alert_threshold_critical: int = 80
     alert_threshold_high: int = 60
