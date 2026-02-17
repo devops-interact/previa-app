@@ -1,5 +1,5 @@
 # =============================================================================
-# PREV.IA — Backend Dockerfile
+# Previa App — Backend Dockerfile
 # Multi-stage build for production deployment
 # Compatible with Railway/Render
 # =============================================================================
