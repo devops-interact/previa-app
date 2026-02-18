@@ -73,27 +73,23 @@ export function AlertCard({ severity, article, rfc, entityName, status, onDismis
     if (dismissed) return null
 
     return (
-        <div className={`${config.bg} rounded-xl p-4 flex items-start space-x-4 border ${config.border} shadow-lg ${config.glow} hover:shadow-xl transition-shadow`}>
-            {/* Icon Box */}
-            <div className={`flex-shrink-0 w-10 h-10 ${config.iconBg} rounded-lg flex items-center justify-center shadow-sm`}>
-                <AlertTriangle className="w-5 h-5 text-white" />
+        <div className={`${config.bg} rounded-xl p-3.5 flex items-start gap-3 border ${config.border} transition-all duration-150 hover:brightness-110 active:scale-[0.99] cursor-pointer`}>
+            {/* Icon */}
+            <div className={`shrink-0 w-8 h-8 ${config.iconBg} rounded-lg flex items-center justify-center`}>
+                <AlertTriangle className="w-4 h-4 text-white" />
             </div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0 pt-0.5">
-                <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                        <h3 className={`text-sm font-bold ${config.textPrimary} mb-1`}>
-                            Alerta de Presuntos {article}
-                        </h3>
-                        <p className={`text-xs font-mono font-semibold ${config.textSecondary} mb-0.5`}>
-                            {rfc}
-                        </p>
-                        <p className={`text-xs ${config.textTertiary} uppercase tracking-wide truncate`}>
-                            {entityName}
-                        </p>
-                    </div>
-                </div>
+            <div className="flex-1 min-w-0">
+                <p className={`text-xs font-bold ${config.textPrimary} leading-tight`}>
+                    Alerta {article}
+                </p>
+                <p className={`text-[11px] font-mono font-semibold ${config.textSecondary} mt-0.5`}>
+                    {rfc}
+                </p>
+                <p className={`text-[11px] ${config.textTertiary} uppercase tracking-wide truncate mt-0.5`}>
+                    {entityName}
+                </p>
             </div>
         </div>
     )

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Search, Bell, Settings as SettingsIcon, Upload, FileSpreadsheet } from 'lucide-react'
+import { Search, Bell, Upload, FileSpreadsheet } from 'lucide-react'
 import { Sidebar } from '@/components/Sidebar'
 import { AlertCard } from '@/components/AlertCard'
 import { ComplianceTable } from '@/components/ComplianceTable'
@@ -114,6 +114,12 @@ export default function TableroPage() {
         status: '',
     })
 
+    // Called by AIAssistant when scan is completed through agent chat
+    const handleAgentScanComplete = useCallback((results: ReturnType<typeof resultToTableRow>[], alerts: Alert[]) => {
+        setTableData(results)
+        setActiveAlerts(alerts)
+    }, [])
+
     const pollInterval = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const loadScanResults = useCallback(async (scanId: string) => {
@@ -187,56 +193,47 @@ export default function TableroPage() {
                 <Sidebar onWatchlistSelect={handleWatchlistSelect} />
 
                 <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-                    {/* Top Navigation Bar */}
-                    <header className="bg-previa-surface border-b border-previa-border px-6 py-3 flex-shrink-0">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                                <h1 className="text-base font-semibold text-previa-ink">Tablero</h1>
-                                {chatContext.watchlist && (
-                                    <span className="text-xs text-previa-muted bg-previa-background border border-previa-border px-2 py-0.5 rounded-full">
-                                        {chatContext.organization} › {chatContext.watchlist}
+                    {/* Top Navigation Bar — h-14 matches agent panel header */}
+                    <header className="h-14 flex items-center justify-between px-5 bg-previa-surface border-b border-previa-border flex-shrink-0">
+                        <div className="flex items-center space-x-3">
+                            <h1 className="text-sm font-semibold text-previa-ink">Tablero</h1>
+                            {chatContext.watchlist && (
+                                <span className="text-xs text-previa-muted bg-previa-background border border-previa-border px-2 py-0.5 rounded-full truncate max-w-[200px]">
+                                    {chatContext.organization} › {chatContext.watchlist}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-previa-muted" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar RFC, empresa..."
+                                    className="pl-8 pr-3 py-1.5 bg-previa-background border border-previa-border rounded-lg text-xs text-previa-ink placeholder-previa-muted focus:outline-none focus:ring-1 focus:ring-previa-accent/60 focus:border-previa-accent transition-all w-44"
+                                />
+                            </div>
+
+                            <button
+                                onClick={() => openUploadModal(chatContext)}
+                                className="flex items-center space-x-1.5 px-3 py-1.5 bg-previa-accent/10 text-previa-accent text-xs rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 active:scale-[0.97] transition-all"
+                            >
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>Subir</span>
+                            </button>
+
+                            <button
+                                onClick={handleBellClick}
+                                className="relative text-previa-muted hover:text-previa-accent transition-colors p-1.5 rounded-lg hover:bg-previa-surface-hover"
+                                title={`${unreadCount} alertas`}
+                            >
+                                <Bell className="w-4 h-4" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold leading-none">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
                                     </span>
                                 )}
-                            </div>
-
-                            <div className="flex items-center space-x-3">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-previa-muted" />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar RFC, empresa..."
-                                        className="pl-9 pr-4 py-1.5 bg-previa-background border border-previa-border rounded-lg text-sm text-previa-ink placeholder-previa-muted focus:outline-none focus:ring-2 focus:ring-previa-accent/50 focus:border-previa-accent transition-all w-52"
-                                    />
-                                </div>
-
-                                <button
-                                    onClick={() => openUploadModal(chatContext)}
-                                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-previa-accent/10 text-previa-accent text-sm rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 transition-colors"
-                                >
-                                    <Upload className="w-4 h-4" />
-                                    <span>Subir</span>
-                                </button>
-
-                                <button
-                                    onClick={handleBellClick}
-                                    className="relative text-previa-muted hover:text-previa-accent transition-colors p-1"
-                                    title={`${unreadCount} alertas`}
-                                >
-                                    <Bell className="w-5 h-5" />
-                                    {unreadCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold">
-                                            {unreadCount > 9 ? '9+' : unreadCount}
-                                        </span>
-                                    )}
-                                </button>
-
-                                <button className="text-previa-muted hover:text-previa-accent transition-colors p-1">
-                                    <SettingsIcon className="w-5 h-5" />
-                                </button>
-                                <div className="w-8 h-8 rounded-full bg-previa-accent/20 text-previa-accent flex items-center justify-center text-xs font-semibold">
-                                    U
-                                </div>
-                            </div>
+                            </button>
                         </div>
                     </header>
 
@@ -297,14 +294,15 @@ export default function TableroPage() {
                                                 Ver todas ({unreadCount})
                                             </button>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {activeAlerts.map((alert) => (
-                                                <button
-                                                    key={alert.id}
-                                                    onClick={() => handleAlertClick(alert.id)}
-                                                    className="text-left hover:scale-[1.01] active:scale-[0.99] transition-transform"
-                                                >
-                                                    <AlertCard
+                        <div className="grid grid-cols-2 gap-3">
+                            {activeAlerts.map((alert, idx) => (
+                                <button
+                                    key={alert.id}
+                                    onClick={() => handleAlertClick(alert.id)}
+                                    className="text-left animate-fade-up"
+                                    style={{ animationDelay: `${idx * 60}ms` }}
+                                >
+                                    <AlertCard
                                                         severity={alert.severity}
                                                         article={alert.article}
                                                         rfc={alert.rfc}
@@ -324,7 +322,10 @@ export default function TableroPage() {
                     </div>
                 </main>
 
-                <AIAssistant context={chatContext} />
+                <AIAssistant
+                    context={chatContext}
+                    onScanComplete={handleAgentScanComplete}
+                />
             </div>
 
             {notificationModal.open && (
