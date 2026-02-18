@@ -176,7 +176,7 @@ export interface ChatMessage {
     role: ChatRole
     content: string
     timestamp: string
-    suggested_action?: 'upload_csv' | 'create_watchlist' | null
+    suggested_action?: 'upload_csv' | 'create_watchlist' | 'scan_results' | null
 }
 
 export interface ChatContext {

@@ -9,6 +9,7 @@ import { ComplianceTable } from '@/components/ComplianceTable'
 import { AIAssistant } from '@/components/AIAssistant'
 import { AuthGuard } from '@/components/AuthGuard'
 import { NotificationModal } from '@/components/NotificationModal'
+import { AlertsMosaicModal } from '@/components/AlertsMosaicModal'
 import { useUploadModal } from '@/contexts/UploadModalContext'
 import { apiClient } from '@/lib/api-client'
 import type { Alert, AlertSeverity, ChatContext, ScanEntityResult } from '@/types'
@@ -104,7 +105,8 @@ function URLParamHandler({ openUploadModal, chatContext, onScanId }: ParamHandle
 
 export default function TableroPage() {
     const { openUploadModal } = useUploadModal()
-    const [notificationModal, setNotificationModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 })
+    const [notificationModal, setNotificationModal] = useState<{ open: boolean; alerts: Alert[]; index: number }>({ open: false, alerts: [], index: 0 })
+    const [alertsMosaicOpen, setAlertsMosaicOpen] = useState(false)
     const [activeAlerts, setActiveAlerts] = useState<Alert[]>([])
     const [tableData, setTableData] = useState<ReturnType<typeof resultToTableRow>[]>([])
     const [chatContext, setChatContext] = useState<ChatContext>({})
@@ -166,13 +168,19 @@ export default function TableroPage() {
 
     const unreadCount = activeAlerts.length
 
+    // Clicking a card in the dashboard grid opens mosaic (not direct detail)
     const handleAlertClick = (alertId: string) => {
-        const idx = activeAlerts.findIndex((a) => a.id === alertId)
-        if (idx !== -1) setNotificationModal({ open: true, index: idx })
+        if (activeAlerts.length > 0) setAlertsMosaicOpen(true)
     }
 
+    // Bell opens mosaic
     const handleBellClick = () => {
-        if (activeAlerts.length > 0) setNotificationModal({ open: true, index: 0 })
+        if (activeAlerts.length > 0) setAlertsMosaicOpen(true)
+    }
+
+    // From within mosaic, clicking a card opens the detail modal against the *filtered* list
+    const handleMosaicSelect = (filteredAlerts: Alert[], index: number) => {
+        setNotificationModal({ open: true, alerts: filteredAlerts, index })
     }
 
     const handleWatchlistSelect = (orgId: number, wlId: number, orgName: string, wlName: string) => {
@@ -288,7 +296,7 @@ export default function TableroPage() {
                                                 Alertas Activas
                                             </h2>
                                             <button
-                                                onClick={handleBellClick}
+                                                onClick={() => setAlertsMosaicOpen(true)}
                                                 className="text-xs text-previa-accent hover:underline"
                                             >
                                                 Ver todas ({unreadCount})
@@ -328,11 +336,19 @@ export default function TableroPage() {
                 />
             </div>
 
+            {alertsMosaicOpen && (
+                <AlertsMosaicModal
+                    alerts={activeAlerts}
+                    onClose={() => setAlertsMosaicOpen(false)}
+                    onSelectAlert={handleMosaicSelect}
+                />
+            )}
+
             {notificationModal.open && (
                 <NotificationModal
-                    alerts={activeAlerts}
+                    alerts={notificationModal.alerts}
                     initialIndex={notificationModal.index}
-                    onClose={() => setNotificationModal({ open: false, index: 0 })}
+                    onClose={() => setNotificationModal({ open: false, alerts: [], index: 0 })}
                 />
             )}
         </AuthGuard>
