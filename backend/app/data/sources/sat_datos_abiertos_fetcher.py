@@ -66,6 +66,7 @@ KNOWN_SAT_FILES: List[Tuple[str, str, Optional[str]]] = [
 # ── Mapping: link text keywords → (article_type, status/category) ──────────
 # The SAT page link text (anchor inner text) identifies which list is being
 # linked.  We match case-insensitively.  Order matters: first match wins.
+# See: http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos/contribuyentes_publicados.html
 
 FILE_CLASSIFICATION: List[Tuple[str, str, Optional[str]]] = [
     # Art. 69-B
@@ -80,18 +81,27 @@ FILE_CLASSIFICATION: List[Tuple[str, str, Optional[str]]] = [
     ("listado global",        "art_69_bis", "definitivo"),
     ("69-b bis",              "art_69_bis", None),
 
-    # Art. 69
+    # Art. 69 — contribuyentes publicados (todos los listados del Art. 69 CFF)
     ("firme",                 "art_69",   "credito_firme"),
     ("no localizado",         "art_69",   "no_localizado"),
     ("cancelado",             "art_69",   "credito_cancelado"),
     ("sentencia",             "art_69",   "sentencia_condenatoria"),
     ("exigible",              "art_69",   "credito_firme"),
     ("csd sin efecto",        "art_69",   None),
+    ("entes públicos",        "art_69",   None),
+    ("gobierno omisos",       "art_69",   None),
     ("omisos",                "art_69",   None),
     ("retorno",               "art_69",   None),
+    ("inversiones",           "art_69",   None),            # retorno de inversiones
     ("condonado",             "art_69",   "credito_cancelado"),
+    ("concurso mercantil",    "art_69",   "credito_cancelado"),  # Art. 146B
+    ("146b",                  "art_69",   "credito_cancelado"),
+    ("por decreto",           "art_69",   "credito_cancelado"),
+    ("146a",                  "art_69",   "credito_cancelado"),  # Cancelados Art. 146A
     ("reducción de multa",    "art_69",   "credito_cancelado"),
     ("reducción de recargo",  "art_69",   "credito_cancelado"),
+    ("artículo 74",           "art_69",   "credito_cancelado"),
+    ("artículo 21",           "art_69",   "credito_cancelado"),
 ]
 
 
@@ -342,7 +352,10 @@ class SATDatosAbiertosFetcher:
     async def run(cls, max_files: int = 10) -> List[Dict[str, Any]]:
         """
         Fetch each SAT Datos Abiertos landing page, discover download links,
-        download Excel/CSV files, parse them, and return notice dicts.
+        download Excel/CSV/ZIP files, parse them, and return notice dicts.
+        contribuyentes_publicados.html is processed first and contains the main
+        Art. 69 / 69-B / 69-B Bis lists; screening tools use this data to
+        validate flags and assess severity (risk score).
         """
         all_notices: List[Dict[str, Any]] = []
         files_processed = 0

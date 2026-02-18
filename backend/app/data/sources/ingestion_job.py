@@ -1,6 +1,8 @@
 """
 Previa App — Ingestion job: DOF + SAT Datos Abiertos → PublicNotice table.
 Runs periodically to refresh indexed data so screening and alerts use real sources.
+Screening tools (sat_69b_tool, sat_69_tool, etc.) query PublicNotice to validate
+flags and assess severity (risk_rules.calculate_risk_score) for scans and sweeps.
 
 Dedup strategy: for each source ('dof', 'sat_datos_abiertos'), we delete all
 existing rows from that source before inserting the fresh batch.  This prevents

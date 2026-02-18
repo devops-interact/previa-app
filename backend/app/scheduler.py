@@ -14,8 +14,10 @@ scheduler = AsyncIOScheduler()
 
 
 async def _ingest_then_sweep():
-    """Run full data ingestion (up to 30 files) then sweep watchlist companies."""
-    await run_ingestion(sat_max_files=30)
+    """Run full data ingestion then sweep watchlist companies.
+    Downloads all listed files from SAT contribuyentes_publicados (and other pages)
+    so the agent can validate flags and assess severity from real data."""
+    await run_ingestion(sat_max_files=50)
     await sweep_watchlist_companies()
 
 
