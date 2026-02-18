@@ -117,7 +117,7 @@ export default function HomePage() {
                             </button>
                             {showDemo && (
                                 <div className="mt-2 p-3 bg-previa-primary-light rounded-lg border border-previa-border text-xs text-previa-muted">
-                                    <p><span className="text-previa-ink font-semibold">Email:</span> user@product.test</p>
+                                    <p><span className="text-previa-ink font-semibold">Email:</span> user@example.com</p>
                                     <p><span className="text-previa-ink font-semibold">Password:</span> 1234</p>
                                 </div>
                             )}

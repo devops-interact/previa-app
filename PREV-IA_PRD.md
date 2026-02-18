@@ -118,7 +118,7 @@ The application is organized into **four key sections** plus a global **Navbar**
 
 ### 3.6 How to Use Previa App
 
-1. **Log in** — Access the portal with credentials (demo: `user@product.test` / `1234`).
+1. **Log in** — Access the portal with credentials (demo: `user@example.com` / `1234`).
 2. **Options bar (Navbar)** — From the top bar, the user can:
    - **Add RFCs** (Mexican Taxpayer IDs) for Previa App to monitor.
    - **Register** RFCs (single or bulk), **group** them into watchlists, and **name/tag** them.
@@ -967,7 +967,7 @@ The application ships with a pre-configured demo account for local testing and s
 
 | Field | Value |
 |---|---|
-| **Email** | `user@product.test` |
+| **Email** | `user@example.com` |
 | **Password** | `1234` |
 | **Role** | `analyst` (read + scan permissions, no admin access) |
 | **Environment** | Demo / Local only |
@@ -1032,7 +1032,7 @@ When the web dashboard is running without `--demo`, users see a login form. Ente
 |---|---|
 | **Next.js frontend** | File upload, scan progress, results table, report download — deployed on **Vercel** |
 | **Cloud backend deployment** | Backend container pulled from Docker Hub and running on **Northflank / RunPod / Lambda** |
-| Demo auth flow | Login page with demo account (`user@product.test` / `1234`) via NextAuth.js |
+| Demo auth flow | Login page with demo account (`user@example.com` / `1234`) via NextAuth.js |
 | SAT certificate portal automation | Playwright-based certificate status checks with CAPTCHA handling (runs server-side in container) |
 | Email alert notifications | SMTP-based alerts for CRITICAL/HIGH findings |
 | Third-party API integration | Reachcore API for real-time 69-B validation as supplementary source |
@@ -1131,7 +1131,7 @@ A pre-configured test account is seeded into the database on first startup:
 
 | | |
 |---|---|
-| **Email** | `user@product.test` |
+| **Email** | `user@example.com` |
 | **Password** | `1234` |
 | **Role** | `analyst` (scan + view reports) |
 
@@ -1163,7 +1163,7 @@ docker compose up --build
 #   - Frontend (Next.js) → http://localhost:3000
 #
 # Open http://localhost:3000 in your browser
-# Login with: user@product.test / 1234
+# Login with: user@example.com / 1234
 ```
 
 **What `docker-compose.yml` runs:**
@@ -1271,7 +1271,7 @@ Use these when creating or editing a RunPod pod (temporarily; Lambda deployment 
 | `ANTHROPIC_MODEL` | Yes | Model identifier | `claude-sonnet-4-20250514` |
 | `DATABASE_URL` | Yes | PostgreSQL connection string | `postgresql+asyncpg://user:pass@host:5432/previa` |
 | `CORS_ALLOWED_ORIGINS` | Yes | Allowed frontend origins (comma-separated) | `https://previa.vercel.app,http://localhost:3000` |
-| `DEMO_USER_EMAIL` | Yes (demo) | Demo login email | `user@product.test` |
+| `DEMO_USER_EMAIL` | Yes (demo) | Demo login email | `user@example.com` |
 | `DEMO_USER_PASSWORD` | Yes (demo) | Demo login password | `1234` |
 | `DEMO_USER_ROLE` | No | Demo user role | `analyst` |
 | `LOG_LEVEL` | No | Logging level | `INFO` |
@@ -1323,7 +1323,7 @@ docker push previadocker/previa-api:latest
    - ANTHROPIC_API_KEY=sk-ant-api03-...
    - ANTHROPIC_MODEL=claude-sonnet-4-20250514
    - DATABASE_URL=postgresql+asyncpg://... (Northflank managed DB or external)
-   - DEMO_USER_EMAIL=user@product.test
+   - DEMO_USER_EMAIL=user@example.com
    - DEMO_USER_PASSWORD=1234
    - LOG_LEVEL=INFO
 5. Port: 8000
@@ -1388,7 +1388,7 @@ vercel deploy --prod
 
 ```
 1. Open https://previa.vercel.app (or your Vercel URL)
-2. Login with: user@product.test / 1234
+2. Login with: user@example.com / 1234
 3. Upload the sample demo_input.csv
 4. Watch the scan progress in real time
 5. View results table with risk levels
@@ -1412,7 +1412,7 @@ ANTHROPIC_MODEL=claude-sonnet-4-20250514
 DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/previa
 
 # --- Demo Account -------------------------------------------
-DEMO_USER_EMAIL=user@product.test
+DEMO_USER_EMAIL=user@example.com
 DEMO_USER_PASSWORD=1234
 DEMO_USER_ROLE=analyst
 
@@ -1564,7 +1564,7 @@ curl https://your-api-url/api/health
 # Open https://previa.vercel.app — should show login page
 
 # --- Auth Flow ---
-# Login with user@product.test / 1234 — should reach dashboard
+# Login with user@example.com / 1234 — should reach dashboard
 
 # --- End-to-End Scan ---
 # Upload demo_input.csv → scan starts → progress bar → results table → download report

@@ -86,7 +86,7 @@ RUNPOD_HEADER
   echo "ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}" >> "$runpod_env_file"
   echo "DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://user:pass@host:5432/previa}" >> "$runpod_env_file"
   echo "CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://previa.vercel.app,http://localhost:3000}" >> "$runpod_env_file"
-  echo "DEMO_USER_EMAIL=${DEMO_USER_EMAIL:-user@product.test}" >> "$runpod_env_file"
+  echo "DEMO_USER_EMAIL=${DEMO_USER_EMAIL:-user@example.com}" >> "$runpod_env_file"
   echo "DEMO_USER_PASSWORD=${DEMO_USER_PASSWORD:-1234}" >> "$runpod_env_file"
   echo "DEMO_USER_ROLE=${DEMO_USER_ROLE:-analyst}" >> "$runpod_env_file"
   echo "LOG_LEVEL=${LOG_LEVEL:-INFO}" >> "$runpod_env_file"

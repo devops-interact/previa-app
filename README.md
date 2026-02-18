@@ -57,7 +57,7 @@ This starts:
 
 1. Open http://localhost:3000
 2. Login with demo credentials:
-   - Email: `user@product.test`
+   - Email: `user@example.com`
    - Password: `1234`
 3. Upload the sample CSV file: `backend/tests/fixtures/demo_input.csv`
 4. Watch the scan progress in Tablero
@@ -186,7 +186,7 @@ export DOCKER_HUB_USERNAME=your-username
 
 ## Demo Credentials
 
-**Email:** user@product.test  
+**Email:** user@example.com  
 **Password:** 1234
 
 > ⚠️ **IMPORTANT:** Disable demo account before production deployment.

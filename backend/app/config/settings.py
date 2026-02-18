@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         return url
     
     # Demo Account
-    demo_user_email: str = "user@product.test"
+    demo_user_email: str = "user@example.com"
     demo_user_password: str = "1234"
     demo_user_role: str = "analyst"
     
