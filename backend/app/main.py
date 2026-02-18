@@ -116,6 +116,11 @@ async def lifespan(app: FastAPI):
         import asyncio
         asyncio.create_task(ConstitutionIngester.process())
 
+    # Initial DOF + SAT Datos Abiertos ingestion (runs in background; scheduler runs every 6h)
+    import asyncio
+    from app.data.sources.ingestion_job import run_ingestion
+    asyncio.create_task(run_ingestion())
+
     yield
 
     # Shutdown

@@ -33,8 +33,9 @@ bcrypt==4.1.2
 # --- Rate Limiting ------------------------------------------
 slowapi==0.1.9
 
-# --- Web Scraping (Phase 2) ---------------------------------
+# --- Web Scraping & ingestion (DOF, SAT Datos Abiertos) ------
 playwright==1.41.0
+beautifulsoup4==4.12.3
 
 # --- Utilities ----------------------------------------------
 python-dotenv==1.0.1

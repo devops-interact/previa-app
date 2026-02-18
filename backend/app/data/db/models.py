@@ -177,3 +177,30 @@ class SATDataset(Base):
     last_updated = Column(DateTime, nullable=True)
     row_count = Column(Integer, default=0)
     file_path = Column(String, nullable=True)
+
+
+class PublicNotice(Base):
+    """
+    Indexed public notices from DOF (dof.gob.mx) and SAT Datos Abiertos
+    (omawww.sat.gob.mx). Used by screening tools to generate alerts from real data.
+    Refreshed periodically by the ingestion job.
+    """
+    __tablename__ = "public_notices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source = Column(String, nullable=False, index=True)  # 'dof' | 'sat_datos_abiertos'
+    source_url = Column(String, nullable=False)  # page or list URL
+    dof_url = Column(String, nullable=True)  # DOF note URL when applicable
+
+    rfc = Column(String, index=True, nullable=True)  # nullable for some DOF notices
+    razon_social = Column(String, nullable=True)
+    article_type = Column(String, nullable=False, index=True)  # art_69b, art_69, art_69_bis, art_49_bis
+    status = Column(String, nullable=True)  # presunto, definitivo, desvirtuado, etc. (69-B)
+    category = Column(String, nullable=True)  # for Art. 69 categories
+    oficio_number = Column(String, nullable=True)
+    authority = Column(String, nullable=True)
+    motivo = Column(Text, nullable=True)
+
+    published_at = Column(DateTime, nullable=True)
+    indexed_at = Column(DateTime, default=datetime.utcnow)
+    raw_snippet = Column(Text, nullable=True)

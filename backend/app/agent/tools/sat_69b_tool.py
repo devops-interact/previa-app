@@ -1,12 +1,16 @@
 """
 Previa App — Article 69-B Screening Tool
 Screen RFCs against SAT's Article 69-B lists (EFOS/EDOS).
+Uses indexed data from DOF (dof.gob.mx) and SAT Datos Abiertos; falls back to mock for demo RFCs.
 """
 
 import logging
 from typing import Dict
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config.risk_rules import Art69BStatus
+from app.data.db.models import PublicNotice
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +59,47 @@ _MOCK_69B: Dict[str, Dict] = {
 }
 
 
+def _notice_to_69b_result(notice) -> Dict:
+    """Map a PublicNotice row to the 69-B screening result dict."""
+    raw = (notice.status or "").strip().lower()
+    try:
+        status_enum = Art69BStatus(raw) if raw else Art69BStatus.PRESUNTO
+    except ValueError:
+        status_enum = Art69BStatus.PRESUNTO
+    return {
+        "found": True,
+        "status": status_enum,
+        "razon_social": notice.razon_social,
+        "oficio_number": notice.oficio_number,
+        "authority": notice.authority,
+        "motivo": notice.motivo,
+        "publication_date": notice.published_at,
+        "dof_url": notice.dof_url or notice.source_url,
+    }
+
+
 async def screen_69b(rfc: str, db: AsyncSession) -> Dict:
     """
     Screen an RFC against Article 69-B lists (EFOS/EDOS).
-
-    Returns mock findings for known demo RFCs. In production this will
-    query a locally-indexed SAT dataset or the Reachcore API.
+    First queries indexed PublicNotice (DOF + SAT Datos Abiertos); then falls back to mock.
     """
     rfc_upper = rfc.strip().upper()
+
+    # 1) Query indexed public data (DOF, SAT Datos Abiertos)
+    result = await db.execute(
+        select(PublicNotice)
+        .where(PublicNotice.rfc == rfc_upper, PublicNotice.article_type == "art_69b")
+        .order_by(PublicNotice.indexed_at.desc())
+        .limit(1)
+    )
+    row = result.scalar_one_or_none()
+    if row:
+        logger.info("RFC %s found in indexed Art. 69-B data (source=%s)", rfc, row.source)
+        return _notice_to_69b_result(row)
+
+    # 2) Fall back to mock for demo RFCs
     if rfc_upper in _MOCK_69B:
-        logger.info("RFC %s found in Art. 69-B data", rfc)
+        logger.info("RFC %s found in Art. 69-B mock data", rfc)
         return _MOCK_69B[rfc_upper]
 
     logger.info("RFC %s not found in Art. 69-B lists", rfc)

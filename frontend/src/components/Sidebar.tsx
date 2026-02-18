@@ -123,7 +123,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                 <nav className="flex-1 overflow-y-auto py-4 space-y-1">
 
                     {/* ── Organizaciones section ───────────────────────────── */}
-                    <div className="px-4 mb-1">
+                    <div className="px-4 mb-1 pb-12">
                         <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-semibold text-previa-muted uppercase tracking-wider">
                                 Organizaciones
@@ -233,7 +233,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                     <div className="border-t border-previa-border mx-4 my-2" />
 
                     {/* ── Herramientas ─────────────────────────────────────── */}
-                    <div className="px-4">
+                    <div className="px-4 pb-12">
                         <h3 className="text-xs font-semibold text-previa-muted uppercase tracking-wider mb-1">
                             Herramientas
                         </h3>
@@ -256,7 +256,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                     <div className="border-t border-previa-border mx-4 my-2" />
 
                     {/* ── Configuración ────────────────────────────────────── */}
-                    <div className="px-4">
+                    <div className="px-4 pb-12">
                         <h3 className="text-xs font-semibold text-previa-muted uppercase tracking-wider mb-1">
                             Configuración
                         </h3>
