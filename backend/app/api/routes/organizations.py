@@ -7,7 +7,7 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, distinct
 
 from app.api.deps import get_current_user
 from app.data.db.session import AsyncSessionLocal
@@ -54,6 +54,11 @@ class WatchlistResponse(BaseModel):
 class CompanyCreate(BaseModel):
     rfc: str
     razon_social: str
+    group_tag: Optional[str] = None
+    extra_data: Optional[dict] = None
+
+class CompanyPatch(BaseModel):
+    razon_social: Optional[str] = None
     group_tag: Optional[str] = None
     extra_data: Optional[dict] = None
 
@@ -320,3 +325,145 @@ async def remove_company(
         raise HTTPException(status_code=404, detail="Company not found")
     await db.delete(c)
     await db.commit()
+
+
+@router.patch("/watchlists/{wl_id}/companies/{company_id}", response_model=dict)
+async def update_company(
+    wl_id: int,
+    company_id: int,
+    body: CompanyPatch,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Inline-edit a company's group_tag, razon_social, or extra_data."""
+    result = await db.execute(
+        select(WatchlistCompany).where(
+            WatchlistCompany.id == company_id,
+            WatchlistCompany.watchlist_id == wl_id,
+        )
+    )
+    c = result.scalar_one_or_none()
+    if not c:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    if body.razon_social is not None:
+        c.razon_social = body.razon_social
+    if body.group_tag is not None:
+        c.group_tag = body.group_tag
+    if body.extra_data is not None:
+        c.extra_data = body.extra_data
+
+    await db.commit()
+    await db.refresh(c)
+    return {
+        "id": c.id,
+        "watchlist_id": c.watchlist_id,
+        "rfc": c.rfc,
+        "razon_social": c.razon_social,
+        "group_tag": c.group_tag,
+        "extra_data": c.extra_data,
+        "added_at": c.added_at.isoformat() if c.added_at else None,
+    }
+
+
+# ── CRM cross-watchlist endpoints ─────────────────────────────────────────────
+
+@router.get("/organizations/{org_id}/tags", response_model=List[str])
+async def list_org_tags(
+    org_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return all distinct group_tag values used across every watchlist in this organization.
+    Useful for populating filter tabs in the CRM view.
+    """
+    org_result = await db.execute(
+        select(Organization).where(
+            Organization.id == org_id,
+            Organization.user_id == current_user["user_id"],
+        )
+    )
+    if not org_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    wl_result = await db.execute(select(Watchlist.id).where(Watchlist.organization_id == org_id))
+    wl_ids = [row[0] for row in wl_result.all()]
+
+    if not wl_ids:
+        return []
+
+    tags_result = await db.execute(
+        select(distinct(WatchlistCompany.group_tag)).where(
+            WatchlistCompany.watchlist_id.in_(wl_ids),
+            WatchlistCompany.group_tag.isnot(None),
+            WatchlistCompany.group_tag != "",
+        )
+    )
+    return sorted(tag for (tag,) in tags_result.all() if tag)
+
+
+@router.get("/organizations/{org_id}/empresas", response_model=List[dict])
+async def list_org_empresas(
+    org_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+    tag: Optional[str] = None,
+    watchlist_id: Optional[int] = None,
+    q: Optional[str] = None,
+):
+    """
+    Return all WatchlistCompany rows across every watchlist in the organization.
+    Supports optional filtering by group_tag, watchlist_id, and text search (RFC / razón social).
+    """
+    org_result = await db.execute(
+        select(Organization).where(
+            Organization.id == org_id,
+            Organization.user_id == current_user["user_id"],
+        )
+    )
+    if not org_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    # Fetch all watchlists in this org
+    wl_result = await db.execute(select(Watchlist).where(Watchlist.organization_id == org_id))
+    watchlists = wl_result.scalars().all()
+    wl_map = {wl.id: wl.name for wl in watchlists}
+    wl_ids = list(wl_map.keys())
+
+    if not wl_ids:
+        return []
+
+    # Build query for companies
+    query = select(WatchlistCompany).where(WatchlistCompany.watchlist_id.in_(wl_ids))
+
+    if watchlist_id is not None:
+        query = query.where(WatchlistCompany.watchlist_id == watchlist_id)
+
+    if tag:
+        query = query.where(WatchlistCompany.group_tag == tag)
+
+    if q:
+        like = f"%{q.lower()}%"
+        from sqlalchemy import func
+        query = query.where(
+            func.lower(WatchlistCompany.rfc).like(like)
+            | func.lower(WatchlistCompany.razon_social).like(like)
+        )
+
+    result = await db.execute(query)
+    companies = result.scalars().all()
+
+    return [
+        {
+            "id": c.id,
+            "watchlist_id": c.watchlist_id,
+            "watchlist_name": wl_map.get(c.watchlist_id, ""),
+            "rfc": c.rfc,
+            "razon_social": c.razon_social,
+            "group_tag": c.group_tag,
+            "extra_data": c.extra_data,
+            "added_at": c.added_at.isoformat() if c.added_at else None,
+        }
+        for c in companies
+    ]

@@ -115,6 +115,11 @@ export interface WatchlistCompany {
     added_at: string
 }
 
+/** WatchlistCompany enriched with the parent watchlist name — returned by GET /organizations/{id}/empresas */
+export interface EmpresaRow extends WatchlistCompany {
+    watchlist_name: string
+}
+
 export interface Watchlist {
     id: number
     organization_id: number

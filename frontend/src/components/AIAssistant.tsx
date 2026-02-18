@@ -2,9 +2,9 @@
 
 import { Send, Upload, Bot, User as UserIcon, Loader2, Plus } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import type { ChatMessage, ChatContext } from '@/types'
 import { apiClient } from '@/lib/api-client'
+import { useUploadModal } from '@/contexts/UploadModalContext'
 
 const SUGGESTED_PROMPTS = [
     '¿Qué es un EFOS y cómo me afecta?',
@@ -18,7 +18,7 @@ interface AIAssistantProps {
 }
 
 export function AIAssistant({ context }: AIAssistantProps = {}) {
-    const router = useRouter()
+    const { openUploadModal } = useUploadModal()
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
@@ -105,7 +105,7 @@ export function AIAssistant({ context }: AIAssistantProps = {}) {
     }
 
     const handleUploadRedirect = () => {
-        router.push('/dataset')
+        openUploadModal(context)
     }
 
     const isEmpty = messages.length === 0

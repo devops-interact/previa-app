@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { JetBrains_Mono } from "next/font/google"
 import "./globals.css"
+import { UploadModalProvider } from "@/contexts/UploadModalContext"
 
 const jetbrainsMono = JetBrains_Mono({
     subsets: ["latin"],
@@ -20,7 +21,9 @@ export default function RootLayout({
     return (
         <html lang="es" className={jetbrainsMono.variable}>
             <body className="min-h-screen bg-previa-background text-previa-ink">
-                {children}
+                <UploadModalProvider>
+                    {children}
+                </UploadModalProvider>
             </body>
         </html>
     )

@@ -15,6 +15,7 @@ import type {
     Organization,
     Watchlist,
     WatchlistCompany,
+    EmpresaRow,
     ChatMessage,
     ChatContext,
 } from '@/types'
@@ -117,9 +118,15 @@ class APIClient {
 
     // ── Scan ──────────────────────────────────────────────────────────────────
 
-    async uploadScan(file: File): Promise<ScanCreateResponse> {
+    async uploadScan(
+        file: File,
+        orgId?: number,
+        watchlistName?: string,
+    ): Promise<ScanCreateResponse> {
         const formData = new FormData()
         formData.append('file', file)
+        if (orgId != null) formData.append('org_id', String(orgId))
+        if (watchlistName) formData.append('watchlist_name', watchlistName)
 
         const response = await fetch(`${this.baseURL}/api/scan`, {
             method: 'POST',
@@ -236,6 +243,44 @@ class APIClient {
             method: 'POST',
             headers: this.headers({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data),
+        })
+        if (!response.ok) throw new Error(await this.extractError(response))
+        return response.json()
+    }
+
+    async updateCompany(
+        wlId: number,
+        companyId: number,
+        patch: { razon_social?: string; group_tag?: string; extra_data?: Record<string, unknown> },
+    ): Promise<WatchlistCompany> {
+        const response = await fetch(`${this.baseURL}/api/watchlists/${wlId}/companies/${companyId}`, {
+            method: 'PATCH',
+            headers: this.headers({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(patch),
+        })
+        if (!response.ok) throw new Error(await this.extractError(response))
+        return response.json()
+    }
+
+    // ── CRM — cross-watchlist empresa views ───────────────────────────────────
+
+    async listEmpresasByOrg(
+        orgId: number,
+        params?: { tag?: string; watchlistId?: number; q?: string },
+    ): Promise<EmpresaRow[]> {
+        const qs = new URLSearchParams()
+        if (params?.tag) qs.set('tag', params.tag)
+        if (params?.watchlistId != null) qs.set('watchlist_id', String(params.watchlistId))
+        if (params?.q) qs.set('q', params.q)
+        const url = `${this.baseURL}/api/organizations/${orgId}/empresas${qs.toString() ? '?' + qs.toString() : ''}`
+        const response = await fetch(url, { headers: this.headers() })
+        if (!response.ok) throw new Error(await this.extractError(response))
+        return response.json()
+    }
+
+    async listTags(orgId: number): Promise<string[]> {
+        const response = await fetch(`${this.baseURL}/api/organizations/${orgId}/tags`, {
+            headers: this.headers(),
         })
         if (!response.ok) throw new Error(await this.extractError(response))
         return response.json()

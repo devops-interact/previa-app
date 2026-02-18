@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Search, Bell, Settings as SettingsIcon, Upload } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { AlertCard } from '@/components/AlertCard'
 import { ComplianceTable } from '@/components/ComplianceTable'
 import { AIAssistant } from '@/components/AIAssistant'
 import { AuthGuard } from '@/components/AuthGuard'
 import { NotificationModal } from '@/components/NotificationModal'
+import { useUploadModal } from '@/contexts/UploadModalContext'
 import type { Alert, ChatContext } from '@/types'
 
 const ALERTS: Alert[] = [
@@ -64,10 +65,21 @@ const TABLE_DATA = [
 ]
 
 export default function TableroPage() {
-    const router = useRouter()
+    const searchParams = useSearchParams()
+    const { openUploadModal } = useUploadModal()
     const [notificationModal, setNotificationModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 })
     const [activeAlerts, setActiveAlerts] = useState(ALERTS)
     const [chatContext, setChatContext] = useState<ChatContext>({})
+
+    // Open upload modal when arriving from /dataset (e.g. ?upload=1)
+    const didOpenUpload = useRef(false)
+    useEffect(() => {
+        if (searchParams.get('upload') === '1' && !didOpenUpload.current) {
+            didOpenUpload.current = true
+            openUploadModal(chatContext)
+            window.history.replaceState({}, '', '/tablero')
+        }
+    }, [searchParams, openUploadModal, chatContext])
 
     const unreadCount = activeAlerts.length
 
@@ -112,9 +124,9 @@ export default function TableroPage() {
                                     />
                                 </div>
 
-                                {/* Upload button */}
+                                {/* Upload button — opens modal */}
                                 <button
-                                    onClick={() => router.push('/dataset')}
+                                    onClick={() => openUploadModal(chatContext)}
                                     className="flex items-center space-x-1.5 px-3 py-1.5 bg-previa-accent/10 text-previa-accent text-sm rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 transition-colors"
                                 >
                                     <Upload className="w-4 h-4" />

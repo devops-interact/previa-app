@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
     ChevronDown, ChevronRight, FileText, Settings, User, LogOut,
-    Building2, List, Plus,
+    Building2, List, Plus, LayoutGrid,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import type { Organization, Watchlist } from '@/types'
@@ -170,9 +170,24 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                             }
                                         </button>
 
-                                        {/* Watchlists under org */}
+                                        {/* Children under org */}
                                         {expandedOrgs.has(org.id) && (
                                             <ul className="ml-5 border-l border-previa-border pl-3 mt-0.5 space-y-0.5 pb-1">
+                                                {/* Ver empresas → CRM */}
+                                                <li>
+                                                    <Link
+                                                        href={`/crm/${org.id}`}
+                                                        className={`w-full flex items-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs transition-all ${pathname === `/crm/${org.id}`
+                                                            ? 'bg-previa-accent/10 text-previa-accent border border-previa-accent/20 font-semibold'
+                                                            : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                                                            }`}
+                                                    >
+                                                        <LayoutGrid className="w-3 h-3 flex-shrink-0" />
+                                                        <span>Ver empresas</span>
+                                                    </Link>
+                                                </li>
+
+                                                {/* Watchlists */}
                                                 {org.watchlists.length === 0 ? (
                                                     <li className="text-xs text-previa-muted py-1 px-2 italic">Sin watchlists</li>
                                                 ) : (
@@ -196,7 +211,8 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                                         </li>
                                                     ))
                                                 )}
-                                                {/* Add watchlist inline shortcut */}
+
+                                                {/* Add watchlist / upload */}
                                                 <li>
                                                     <button
                                                         onClick={() => setShowOrgModal(true)}

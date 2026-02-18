@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User as UserIcon, Loader2, Upload, Plus, Building2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { AuthGuard } from '@/components/AuthGuard'
+import { useUploadModal } from '@/contexts/UploadModalContext'
 import type { ChatMessage, ChatContext } from '@/types'
 import { apiClient } from '@/lib/api-client'
 
@@ -18,7 +18,7 @@ const SUGGESTED_PROMPTS = [
 ]
 
 export default function ChatPage() {
-    const router = useRouter()
+    const { openUploadModal } = useUploadModal()
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
@@ -113,7 +113,7 @@ export default function ChatPage() {
                                     </span>
                                 )}
                                 <button
-                                    onClick={() => router.push('/dataset')}
+                                    onClick={() => openUploadModal(chatContext)}
                                     className="flex items-center space-x-1.5 px-3 py-1.5 bg-previa-accent/10 text-previa-accent text-xs rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 transition-colors"
                                 >
                                     <Upload className="w-3.5 h-3.5" />
@@ -152,7 +152,7 @@ export default function ChatPage() {
                                 {/* Quick actions */}
                                 <div className="grid grid-cols-2 gap-3 mb-6">
                                     <button
-                                        onClick={() => router.push('/dataset')}
+                                        onClick={() => openUploadModal(chatContext)}
                                         className="flex items-center space-x-3 p-4 bg-previa-surface border border-previa-border rounded-xl hover:border-previa-accent/40 hover:bg-previa-surface-hover transition-all text-left group"
                                     >
                                         <div className="w-8 h-8 rounded-lg bg-previa-accent/10 flex items-center justify-center flex-shrink-0 group-hover:bg-previa-accent/20 transition-colors">
@@ -215,7 +215,7 @@ export default function ChatPage() {
                                             <p className="whitespace-pre-wrap">{msg.content}</p>
                                             {msg.suggested_action === 'upload_csv' && (
                                                 <button
-                                                    onClick={() => router.push('/dataset')}
+                                                    onClick={() => openUploadModal(chatContext)}
                                                     className="mt-3 flex items-center space-x-2 px-3 py-2 rounded-lg bg-previa-accent/20 text-previa-accent hover:bg-previa-accent/30 transition-colors w-full"
                                                 >
                                                     <Upload className="w-4 h-4" />

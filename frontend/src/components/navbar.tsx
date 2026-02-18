@@ -3,10 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
+import { useUploadModal } from '@/contexts/UploadModalContext'
 
 export function Navbar() {
     const pathname = usePathname()
     const router = useRouter()
+    const { openUploadModal } = useUploadModal()
 
     const handleLogout = () => {
         localStorage.removeItem('previa_auth')
@@ -18,7 +20,6 @@ export function Navbar() {
     }
 
     const navItems = [
-        { href: '/dataset', label: 'Nuevo Dataset' },
         { href: '/tablero', label: 'Tablero' },
         { href: '/chat', label: 'Chat' },
     ]
@@ -32,6 +33,13 @@ export function Navbar() {
                     </Link>
 
                     <div className="flex items-center space-x-2">
+                        <button
+                            type="button"
+                            onClick={() => openUploadModal()}
+                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover"
+                        >
+                            Nuevo Dataset
+                        </button>
                         {navItems.map((item) => (
                             <Link
                                 key={item.href}
