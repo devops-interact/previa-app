@@ -71,7 +71,7 @@ async def login(
             detail="Account is disabled",
         )
 
-    token = create_access_token(data={"sub": user.email, "role": user.role})
+    token = create_access_token(data={"sub": user.email, "role": user.role, "user_id": user.id})
     logger.info("Successful login for email=%s", user.email)
 
     return TokenResponse(

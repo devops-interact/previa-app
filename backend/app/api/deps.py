@@ -5,6 +5,7 @@ JWT authentication utilities and FastAPI dependency functions.
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import logging
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -25,6 +26,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def hash_password(password: str) -> str:
     """Hash a plaintext password with bcrypt."""
     return pwd_context.hash(password)
+
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+
+logger = logging.getLogger(__name__)
 
 
 # ── JWT utilities ─────────────────────────────────────────────────────────────
@@ -73,7 +79,7 @@ def get_current_user(
             ...
 
     Returns:
-        Decoded token payload (includes "sub" = email, "role").
+        Decoded token payload (includes "sub" = email, "role", "user_id" = User.id).
 
     Raises:
         HTTPException 401 if token is missing, expired, or invalid.
@@ -88,5 +94,7 @@ def get_current_user(
         if not email:
             raise _credentials_exception
         return payload
-    except JWTError:
+    except JWTError as exc:
+        # Log reason without including the raw token
+        logger.warning("JWT validation failed: %s", exc)
         raise _credentials_exception
