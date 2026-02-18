@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Search, Bell, Settings as SettingsIcon, Upload } from 'lucide-react'
 import { Sidebar } from '@/components/Sidebar'
@@ -64,22 +64,25 @@ const TABLE_DATA = [
     { id: '6', empresa: 'BADESA CONSTRUCCIONES S.A.', rfc: 'BAD180409H32', art69: 'N/A', art69B: 'N/A', art69BIS: 'N/A', art49BIS: 'N/A' },
 ]
 
-export default function TableroPage() {
+/** Reads ?upload=1 from the URL and opens the upload modal. Must be inside Suspense. */
+function UploadParamHandler({ openUploadModal, chatContext }: { openUploadModal: (ctx?: ChatContext) => void; chatContext: ChatContext }) {
     const searchParams = useSearchParams()
-    const { openUploadModal } = useUploadModal()
-    const [notificationModal, setNotificationModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 })
-    const [activeAlerts, setActiveAlerts] = useState(ALERTS)
-    const [chatContext, setChatContext] = useState<ChatContext>({})
-
-    // Open upload modal when arriving from /dataset (e.g. ?upload=1)
-    const didOpenUpload = useRef(false)
+    const didOpen = useRef(false)
     useEffect(() => {
-        if (searchParams.get('upload') === '1' && !didOpenUpload.current) {
-            didOpenUpload.current = true
+        if (searchParams.get('upload') === '1' && !didOpen.current) {
+            didOpen.current = true
             openUploadModal(chatContext)
             window.history.replaceState({}, '', '/tablero')
         }
     }, [searchParams, openUploadModal, chatContext])
+    return null
+}
+
+export default function TableroPage() {
+    const { openUploadModal } = useUploadModal()
+    const [notificationModal, setNotificationModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 })
+    const [activeAlerts, setActiveAlerts] = useState(ALERTS)
+    const [chatContext, setChatContext] = useState<ChatContext>({})
 
     const unreadCount = activeAlerts.length
 
@@ -98,6 +101,10 @@ export default function TableroPage() {
 
     return (
         <AuthGuard>
+            {/* UploadParamHandler uses useSearchParams — must be inside Suspense */}
+            <Suspense fallback={null}>
+                <UploadParamHandler openUploadModal={openUploadModal} chatContext={chatContext} />
+            </Suspense>
             <div className="flex h-screen bg-previa-background overflow-hidden">
                 <Sidebar onWatchlistSelect={handleWatchlistSelect} />
 
