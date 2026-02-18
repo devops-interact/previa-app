@@ -48,9 +48,11 @@ async def run_ingestion(sat_max_files: int = 10):
             sat_notices = await SATDatosAbiertosFetcher.run(max_files=sat_max_files)
             logger.info("SAT Datos Abiertos: %d notices fetched", len(sat_notices))
             await _replace_source(db, "sat_datos_abiertos", sat_notices, now)
+            sat_69b_count = sum(1 for n in sat_notices if n.get("article_type") == "art_69b")
+            await _update_sat_dataset(db, "lista_69b", row_count=sat_69b_count)
             for ds_name in ("art69_creditos_firmes", "art69_no_localizados",
                             "art69_creditos_cancelados", "art69_sentencias"):
-                await _update_sat_dataset(db, ds_name)
+                await _update_sat_dataset(db, ds_name, row_count=len(sat_notices))
 
             await db.commit()
             logger.info("Public data ingestion completed — DOF: %d, SAT: %d",
@@ -87,10 +89,12 @@ async def _replace_source(db: AsyncSession, source: str, notices: list, now: dat
     await db.flush()
 
 
-async def _update_sat_dataset(db: AsyncSession, dataset_name: str):
-    """Update SATDataset last_updated for freshness."""
+async def _update_sat_dataset(db: AsyncSession, dataset_name: str, row_count: int = 0):
+    """Update SATDataset last_updated and row_count for freshness gating."""
     r = await db.execute(select(SATDataset).where(SATDataset.dataset_name == dataset_name))
     row = r.scalar_one_or_none()
     if row:
         row.last_updated = datetime.utcnow()
+        if row_count > 0:
+            row.row_count = row_count
     await db.flush()

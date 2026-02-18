@@ -26,6 +26,19 @@ logger = logging.getLogger(__name__)
 
 SAT_BASE = "http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos"
 
+# Headers that mimic a regular browser — needed because the SAT server blocks
+# plain bot requests and some endpoints redirect to HTTPS with certificate
+# chains that may not be trusted in the Railway container.
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "es-MX,es;q=0.9,en;q=0.8",
+}
+
 SAT_PAGES = [
     ("contribuyentes_publicados.html", "contribuyentes_publicados"),
     ("controversia.html", "controversia"),
@@ -125,7 +138,14 @@ class SATDatosAbiertosFetcher:
 
     @classmethod
     async def _get(cls, url: str, timeout: float | None = None) -> httpx.Response:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=timeout or cls.TIMEOUT) as client:
+        # verify=False: SAT/government servers often have self-signed or expired
+        # intermediate certs that cause SSL handshake failures in containers.
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=timeout or cls.TIMEOUT,
+            verify=False,
+            headers=_BROWSER_HEADERS,
+        ) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             return resp

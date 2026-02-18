@@ -90,18 +90,21 @@ async def lifespan(app: FastAPI):
                 await db.commit()
                 logger.info("Demo user created: %s (documented credentials)", default_demo_email)
 
-    # Seed demo SATDataset sentinel so screening mock data is always reachable
+    # Seed demo SATDataset sentinel rows so the freshness-check has a row to
+    # query.  Use last_updated=None (never ingested) so the deferred ingestion
+    # task is NOT skipped on first boot — it will then download real SAT data.
     from app.data.db.models import SATDataset
-    from datetime import datetime as _dt
 
     async with AsyncSessionLocal() as db:
         for ds_name in ("lista_69b", "art69_creditos_firmes", "art69_no_localizados",
                         "art69_creditos_cancelados", "art69_sentencias", "art69_bis", "art49_bis"):
             r = await db.execute(select(SATDataset).where(SATDataset.dataset_name == ds_name))
             if r.scalar_one_or_none() is None:
-                db.add(SATDataset(dataset_name=ds_name, last_updated=_dt.utcnow(), row_count=0))
+                # last_updated=None means "never fetched" → freshness gate will
+                # NOT skip ingestion on next startup, allowing a real download.
+                db.add(SATDataset(dataset_name=ds_name, last_updated=None, row_count=0))
         await db.commit()
-        logger.info("SAT dataset sentinel rows ensured")
+        logger.info("SAT dataset sentinel rows ensured (last_updated=None for fresh installs)")
 
     # Scheduler (background SAT data refresh)
     from app.scheduler import start_scheduler, shutdown_scheduler
@@ -134,11 +137,14 @@ async def lifespan(app: FastAPI):
                     select(_SATDataset2).where(_SATDataset2.dataset_name == "lista_69b")
                 )
                 _row = _r.scalar_one_or_none()
-                if _row and _row.last_updated:
+                if _row and _row.last_updated and (_row.row_count or 0) > 0:
+                    # Only skip if data was both recently updated AND has actual rows.
+                    # row_count=0 means only the sentinel was seeded, not real data.
                     age_hours = (_dt2.utcnow() - _row.last_updated).total_seconds() / 3600
                     if age_hours < 6:
                         logger.info(
-                            "Skipping startup ingestion — data is %.1fh old (< 6h threshold)", age_hours
+                            "Skipping startup ingestion — data is %.1fh old, %d rows (< 6h threshold)",
+                            age_hours, _row.row_count,
                         )
                         return
             logger.info("Starting deferred ingestion + sweep...")

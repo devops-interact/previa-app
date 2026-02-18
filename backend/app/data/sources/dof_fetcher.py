@@ -13,6 +13,16 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "es-MX,es;q=0.9,en;q=0.8",
+}
+
 DOF_BASE = "https://www.dof.gob.mx"
 DOF_INDEX = "https://www.dof.gob.mx/index.php"
 # Edition URL: index.php?year=2025&month=11&day=21&edicion=MAT
@@ -32,7 +42,9 @@ class DOFFetcher:
     @classmethod
     async def fetch_index(cls) -> str:
         """Fetch DOF index/main page HTML."""
-        async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=30.0, verify=False, headers=_BROWSER_HEADERS
+        ) as client:
             resp = await client.get(DOF_INDEX)
             resp.raise_for_status()
             return resp.text
@@ -42,7 +54,9 @@ class DOFFetcher:
         """Fetch a specific DOF edition page (e.g. index.php?year=2025&month=11&day=21&edicion=MAT)."""
         url = DOF_EDITION_TEMPLATE.format(year=year, month=month, day=day, edicion=edicion)
         try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+            async with httpx.AsyncClient(
+                follow_redirects=True, timeout=30.0, verify=False, headers=_BROWSER_HEADERS
+            ) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.text
@@ -91,7 +105,9 @@ class DOFFetcher:
     async def fetch_notice_detail(cls, codigo: str, fecha: str) -> str:
         """Fetch a single DOF notice page to extract RFCs and snippet."""
         url = f"{DOF_BASE}/nota_detalle.php?codigo={codigo}&fecha={fecha}"
-        async with httpx.AsyncClient(follow_redirects=True, timeout=25.0) as client:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=25.0, verify=False, headers=_BROWSER_HEADERS
+        ) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             return resp.text
