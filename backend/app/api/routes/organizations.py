@@ -253,6 +253,27 @@ async def delete_watchlist(
     await db.commit()
 
 
+# ── Company serialization ──────────────────────────────────────────────────
+
+def _company_to_dict(c: WatchlistCompany) -> dict:
+    return {
+        "id": c.id,
+        "watchlist_id": c.watchlist_id,
+        "rfc": c.rfc,
+        "razon_social": c.razon_social,
+        "group_tag": c.group_tag,
+        "extra_data": c.extra_data,
+        "added_at": c.added_at.isoformat() if c.added_at else None,
+        "risk_level": c.risk_level,
+        "risk_score": c.risk_score,
+        "art_69b_status": c.art_69b_status,
+        "art_69_categories": c.art_69_categories,
+        "art_69_bis_found": c.art_69_bis_found or False,
+        "art_49_bis_found": c.art_49_bis_found or False,
+        "last_screened_at": c.last_screened_at.isoformat() if c.last_screened_at else None,
+    }
+
+
 # ── Companies ─────────────────────────────────────────────────────────────────
 
 @router.get("/watchlists/{wl_id}/companies", response_model=List[dict])
@@ -265,18 +286,7 @@ async def list_companies(
         select(WatchlistCompany).where(WatchlistCompany.watchlist_id == wl_id)
     )
     companies = result.scalars().all()
-    return [
-        {
-            "id": c.id,
-            "watchlist_id": c.watchlist_id,
-            "rfc": c.rfc,
-            "razon_social": c.razon_social,
-            "group_tag": c.group_tag,
-            "extra_data": c.extra_data,
-            "added_at": c.added_at.isoformat() if c.added_at else None,
-        }
-        for c in companies
-    ]
+    return [_company_to_dict(c) for c in companies]
 
 
 @router.post("/watchlists/{wl_id}/companies", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -296,15 +306,7 @@ async def add_company(
     db.add(c)
     await db.commit()
     await db.refresh(c)
-    return {
-        "id": c.id,
-        "watchlist_id": c.watchlist_id,
-        "rfc": c.rfc,
-        "razon_social": c.razon_social,
-        "group_tag": c.group_tag,
-        "extra_data": c.extra_data,
-        "added_at": c.added_at.isoformat() if c.added_at else None,
-    }
+    return _company_to_dict(c)
 
 
 @router.delete("/watchlists/{wl_id}/companies/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -355,15 +357,7 @@ async def update_company(
 
     await db.commit()
     await db.refresh(c)
-    return {
-        "id": c.id,
-        "watchlist_id": c.watchlist_id,
-        "rfc": c.rfc,
-        "razon_social": c.razon_social,
-        "group_tag": c.group_tag,
-        "extra_data": c.extra_data,
-        "added_at": c.added_at.isoformat() if c.added_at else None,
-    }
+    return _company_to_dict(c)
 
 
 # ── CRM cross-watchlist endpoints ─────────────────────────────────────────────
@@ -464,6 +458,13 @@ async def list_org_empresas(
             "group_tag": c.group_tag,
             "extra_data": c.extra_data,
             "added_at": c.added_at.isoformat() if c.added_at else None,
+            "risk_level": c.risk_level,
+            "risk_score": c.risk_score,
+            "art_69b_status": c.art_69b_status,
+            "art_69_categories": c.art_69_categories,
+            "art_69_bis_found": c.art_69_bis_found or False,
+            "art_49_bis_found": c.art_49_bis_found or False,
+            "last_screened_at": c.last_screened_at.isoformat() if c.last_screened_at else None,
         }
         for c in companies
     ]

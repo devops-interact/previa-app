@@ -116,10 +116,16 @@ async def lifespan(app: FastAPI):
         import asyncio
         asyncio.create_task(ConstitutionIngester.process())
 
-    # Initial DOF + SAT Datos Abiertos ingestion (runs in background; scheduler runs every 6h)
+    # Initial DOF + SAT Datos Abiertos ingestion + watchlist sweep (background; scheduler repeats every 6h)
     import asyncio
     from app.data.sources.ingestion_job import run_ingestion
-    asyncio.create_task(run_ingestion())
+    from app.data.sources.sweep_job import sweep_watchlist_companies
+
+    async def _initial_ingest_and_sweep():
+        await run_ingestion()
+        await sweep_watchlist_companies()
+
+    asyncio.create_task(_initial_ingest_and_sweep())
 
     yield
 

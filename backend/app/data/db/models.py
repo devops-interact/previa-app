@@ -4,7 +4,7 @@ SQLAlchemy ORM models for entities, scans, results, audit logs, organizations, a
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, JSON, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -57,16 +57,25 @@ class Watchlist(Base):
 
 
 class WatchlistCompany(Base):
-    """A company (RFC) that belongs to a watchlist."""
+    """A company (RFC) that belongs to a watchlist, enriched with compliance status."""
     __tablename__ = "watchlist_companies"
 
     id = Column(Integer, primary_key=True, index=True)
     watchlist_id = Column(Integer, ForeignKey("watchlists.id"), nullable=False)
     rfc = Column(String, nullable=False, index=True)
     razon_social = Column(String, nullable=False)
-    group_tag = Column(String, nullable=True)     # custom grouping criteria
-    extra_data = Column(JSON, nullable=True)       # flexible columns from CSV/XLS
+    group_tag = Column(String, nullable=True)
+    extra_data = Column(JSON, nullable=True)
     added_at = Column(DateTime, default=datetime.utcnow)
+
+    # ── Compliance status (populated by sweep job) ─────────────────────────
+    risk_level = Column(String, nullable=True)          # CRITICAL, HIGH, MEDIUM, LOW, CLEAR
+    risk_score = Column(Integer, nullable=True)
+    art_69b_status = Column(String, nullable=True)      # presunto, definitivo, desvirtuado, sentencia_favorable
+    art_69_categories = Column(JSON, nullable=True)     # e.g. ["credito_firme", "no_localizado"]
+    art_69_bis_found = Column(Boolean, default=False)
+    art_49_bis_found = Column(Boolean, default=False)
+    last_screened_at = Column(DateTime, nullable=True)
 
     # Relationships
     watchlist = relationship("Watchlist", back_populates="companies")
@@ -188,19 +197,24 @@ class PublicNotice(Base):
     __tablename__ = "public_notices"
 
     id = Column(Integer, primary_key=True, index=True)
-    source = Column(String, nullable=False, index=True)  # 'dof' | 'sat_datos_abiertos'
-    source_url = Column(String, nullable=False)  # page or list URL
-    dof_url = Column(String, nullable=True)  # DOF note URL when applicable
+    source = Column(String, nullable=False, index=True)         # 'dof' | 'sat_datos_abiertos'
+    source_url = Column(String, nullable=False)                  # page or list URL
+    dof_url = Column(String, nullable=True)                      # DOF note URL when applicable
 
-    rfc = Column(String, index=True, nullable=True)  # nullable for some DOF notices
+    rfc = Column(String, index=True, nullable=True)              # nullable for some DOF notices
     razon_social = Column(String, nullable=True)
-    article_type = Column(String, nullable=False, index=True)  # art_69b, art_69, art_69_bis, art_49_bis
-    status = Column(String, nullable=True)  # presunto, definitivo, desvirtuado, etc. (69-B)
-    category = Column(String, nullable=True)  # for Art. 69 categories
+    article_type = Column(String, nullable=False, index=True)    # art_69b, art_69, art_69_bis, art_49_bis
+    status = Column(String, nullable=True)                       # presunto, definitivo, desvirtuado, etc.
+    category = Column(String, nullable=True)                     # for Art. 69 categories
     oficio_number = Column(String, nullable=True)
     authority = Column(String, nullable=True)
     motivo = Column(Text, nullable=True)
 
     published_at = Column(DateTime, nullable=True)
     indexed_at = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)     # updated on each ingestion run
     raw_snippet = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_pn_dedup", "source", "rfc", "article_type", "status", unique=False),
+    )

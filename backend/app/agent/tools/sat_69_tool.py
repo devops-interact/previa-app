@@ -1,6 +1,7 @@
 """
 Previa App — Article 69 Screening Tool
 Screen RFCs against SAT's Article 69 non-compliance lists.
+Queries indexed PublicNotice data first; falls back to mock for demo RFCs.
 
 Covers four categories:
 1. Créditos Fiscales Firmes — Taxpayers with firm, enforceable tax debts
@@ -10,13 +11,15 @@ Covers four categories:
 """
 
 import logging
-from typing import Dict
+from typing import Dict, List
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config.risk_rules import Art69Category
+from app.data.db.models import PublicNotice
 
 logger = logging.getLogger(__name__)
 
-# Demo RFCs with known Art. 69 findings
 _MOCK_69: Dict[str, Dict] = {
     "GFS1109204G1": {
         "found": True,
@@ -54,17 +57,48 @@ _MOCK_69: Dict[str, Dict] = {
     },
 }
 
+_CATEGORY_MAP = {
+    "credito_firme": Art69Category.CREDITO_FIRME.value,
+    "no_localizado": Art69Category.NO_LOCALIZADO.value,
+    "credito_cancelado": Art69Category.CREDITO_CANCELADO.value,
+    "sentencia_condenatoria": Art69Category.SENTENCIA_CONDENATORIA.value,
+}
+
+
+def _notices_to_69_result(notices: list) -> Dict:
+    """Aggregate multiple PublicNotice rows for the same RFC into one Art. 69 result."""
+    categories: List[Dict] = []
+    for n in notices:
+        cat_raw = (n.category or n.status or "").strip().lower()
+        cat_type = _CATEGORY_MAP.get(cat_raw, cat_raw)
+        categories.append({
+            "type": cat_type,
+            "details": n.motivo or f"Art. 69 — {cat_type}",
+            "publication_date": n.published_at.isoformat() if n.published_at else None,
+            "sat_url": n.source_url,
+        })
+    return {"found": True, "categories": categories}
+
 
 async def screen_69(rfc: str, db: AsyncSession) -> Dict:
     """
     Screen an RFC against Article 69 non-compliance lists.
-
-    Returns mock findings for known demo RFCs. In production this will
-    query locally-indexed SAT Art. 69 datasets across all four categories.
+    First queries indexed PublicNotice (SAT Datos Abiertos); then falls back to mock.
     """
     rfc_upper = rfc.strip().upper()
+
+    result = await db.execute(
+        select(PublicNotice)
+        .where(PublicNotice.rfc == rfc_upper, PublicNotice.article_type == "art_69")
+        .order_by(PublicNotice.indexed_at.desc())
+    )
+    rows = result.scalars().all()
+    if rows:
+        logger.info("RFC %s found in indexed Art. 69 data (%d records)", rfc, len(rows))
+        return _notices_to_69_result(rows)
+
     if rfc_upper in _MOCK_69:
-        logger.info("RFC %s found in Art. 69 data", rfc)
+        logger.info("RFC %s found in Art. 69 mock data", rfc)
         return _MOCK_69[rfc_upper]
 
     logger.info("RFC %s not found in Art. 69 lists", rfc)

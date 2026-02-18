@@ -1,12 +1,16 @@
 """
 Previa App — Ingestion job: DOF + SAT Datos Abiertos → PublicNotice table.
 Runs periodically to refresh indexed data so screening and alerts use real sources.
+
+Dedup strategy: for each source ('dof', 'sat_datos_abiertos'), we delete all
+existing rows from that source before inserting the fresh batch.  This prevents
+unbounded table growth while keeping the data always up-to-date.
 """
 
 import logging
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.data.db.session import AsyncSessionLocal
@@ -19,56 +23,64 @@ logger = logging.getLogger(__name__)
 
 async def run_ingestion():
     """
-    Fetch DOF and SAT Datos Abiertos, upsert into public_notices, update SATDataset.
-    Call this from the scheduler (e.g. every 6–12 hours).
+    Fetch DOF and SAT Datos Abiertos, replace stale data in public_notices,
+    and update SATDataset freshness.  Called at startup and by the scheduler.
     """
     logger.info("Starting public data ingestion (DOF + SAT Datos Abiertos)...")
     async with AsyncSessionLocal() as db:
         try:
-            # 1) DOF
-            dof_notices = await DOFFetcher.run(limit_notices=80)
-            logger.info("DOF: %s notices to upsert", len(dof_notices))
-            for n in dof_notices:
-                await _upsert_notice(db, n)
-            await _update_sat_dataset(db, "lista_69b", len(dof_notices))
+            now = datetime.utcnow()
 
-            # 2) SAT Datos Abiertos
-            sat_notices = await SATDatosAbiertosFetcher.run(limit_per_page=500)
-            logger.info("SAT Datos Abiertos: %s notices to upsert", len(sat_notices))
-            for n in sat_notices:
-                await _upsert_notice(db, n)
-            await _update_sat_dataset(db, "art69_creditos_firmes", len(sat_notices))
+            # ── 1) DOF ────────────────────────────────────────────────────────
+            dof_notices = await DOFFetcher.run(limit_notices=80)
+            logger.info("DOF: %d notices fetched", len(dof_notices))
+            await _replace_source(db, "dof", dof_notices, now)
+            await _update_sat_dataset(db, "lista_69b")
+
+            # ── 2) SAT Datos Abiertos (Excel/CSV files) ──────────────────────
+            sat_notices = await SATDatosAbiertosFetcher.run(max_files=30)
+            logger.info("SAT Datos Abiertos: %d notices fetched", len(sat_notices))
+            await _replace_source(db, "sat_datos_abiertos", sat_notices, now)
+            for ds_name in ("art69_creditos_firmes", "art69_no_localizados",
+                            "art69_creditos_cancelados", "art69_sentencias"):
+                await _update_sat_dataset(db, ds_name)
 
             await db.commit()
-            logger.info("Public data ingestion completed.")
+            logger.info("Public data ingestion completed — DOF: %d, SAT: %d",
+                        len(dof_notices), len(sat_notices))
         except Exception as e:
             await db.rollback()
             logger.exception("Ingestion failed: %s", e)
             raise
 
 
-async def _upsert_notice(db: AsyncSession, n: dict):
-    """Insert or replace a public notice (by source + source_url + rfc to avoid huge dupes)."""
-    # Simple insert; we could add unique constraint and ON CONFLICT later
-    notice = PublicNotice(
-        source=n["source"],
-        source_url=n["source_url"],
-        dof_url=n.get("dof_url"),
-        rfc=n.get("rfc"),
-        razon_social=n.get("razon_social"),
-        article_type=n["article_type"],
-        status=n.get("status"),
-        category=n.get("category"),
-        oficio_number=n.get("oficio_number"),
-        authority=n.get("authority"),
-        motivo=n.get("motivo"),
-        published_at=n.get("published_at"),
-        raw_snippet=n.get("raw_snippet"),
-    )
-    db.add(notice)
+async def _replace_source(db: AsyncSession, source: str, notices: list, now: datetime):
+    """Delete all old rows for the given source and bulk-insert fresh ones."""
+    await db.execute(delete(PublicNotice).where(PublicNotice.source == source))
+    await db.flush()
+
+    for n in notices:
+        db.add(PublicNotice(
+            source=n["source"],
+            source_url=n["source_url"],
+            dof_url=n.get("dof_url"),
+            rfc=n.get("rfc"),
+            razon_social=n.get("razon_social"),
+            article_type=n["article_type"],
+            status=n.get("status"),
+            category=n.get("category"),
+            oficio_number=n.get("oficio_number"),
+            authority=n.get("authority"),
+            motivo=n.get("motivo"),
+            published_at=n.get("published_at"),
+            indexed_at=now,
+            last_seen_at=now,
+            raw_snippet=n.get("raw_snippet"),
+        ))
+    await db.flush()
 
 
-async def _update_sat_dataset(db: AsyncSession, dataset_name: str, _row_delta: int):
+async def _update_sat_dataset(db: AsyncSession, dataset_name: str):
     """Update SATDataset last_updated for freshness."""
     r = await db.execute(select(SATDataset).where(SATDataset.dataset_name == dataset_name))
     row = r.scalar_one_or_none()

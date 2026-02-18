@@ -143,6 +143,13 @@ export interface WatchlistCompany {
     group_tag?: string
     extra_data?: Record<string, unknown>
     added_at: string
+    risk_level?: RiskLevel | null
+    risk_score?: number | null
+    art_69b_status?: string | null
+    art_69_categories?: string[] | null
+    art_69_bis_found?: boolean
+    art_49_bis_found?: boolean
+    last_screened_at?: string | null
 }
 
 /** WatchlistCompany enriched with the parent watchlist name — returned by GET /organizations/{id}/empresas */

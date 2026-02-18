@@ -1,19 +1,84 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import {
-    Search, ChevronDown, ChevronRight, LayoutList, LayoutGrid,
-    Plus, Pencil, Check, X, Loader2, Building2, RefreshCw,
+    Search, ChevronDown, ChevronRight, ChevronUp, LayoutList, LayoutGrid,
+    Plus, Pencil, Check, X, Loader2, Building2, RefreshCw, ShieldAlert, ShieldCheck,
+    AlertTriangle, Info,
 } from 'lucide-react'
 import { Sidebar } from '@/components/Sidebar'
 import { AuthGuard } from '@/components/AuthGuard'
 import { TagBadge } from '@/components/TagBadge'
 import { useUploadModal } from '@/contexts/UploadModalContext'
 import { apiClient } from '@/lib/api-client'
-import type { EmpresaRow, ChatContext, Organization, Watchlist } from '@/types'
+import type { EmpresaRow, ChatContext, Organization, Watchlist, RiskLevel } from '@/types'
 
-// ── Tag inline editor ─────────────────────────────────────────────────────────
+// ── Risk badge ───────────────────────────────────────────────────────────────
+
+const RISK_COLORS: Record<string, string> = {
+    CRITICAL: 'bg-red-500/20 text-red-400 border-red-500/40',
+    HIGH: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
+    MEDIUM: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
+    LOW: 'bg-blue-500/20 text-blue-400 border-blue-500/40',
+    CLEAR: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+}
+
+const RISK_ICONS: Record<string, typeof ShieldAlert> = {
+    CRITICAL: ShieldAlert,
+    HIGH: AlertTriangle,
+    MEDIUM: AlertTriangle,
+    LOW: Info,
+    CLEAR: ShieldCheck,
+}
+
+function RiskBadge({ level }: { level?: RiskLevel | string | null }) {
+    const l = (level || 'CLEAR').toUpperCase()
+    const color = RISK_COLORS[l] || RISK_COLORS.CLEAR
+    const Icon = RISK_ICONS[l] || ShieldCheck
+    return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${color}`}>
+            <Icon className="w-3 h-3" />
+            {l}
+        </span>
+    )
+}
+
+// ── Article status pill ──────────────────────────────────────────────────────
+
+const ART_STATUS_COLORS: Record<string, string> = {
+    definitivo: 'bg-red-500/20 text-red-300',
+    presunto: 'bg-orange-500/20 text-orange-300',
+    desvirtuado: 'bg-emerald-500/15 text-emerald-400',
+    sentencia_favorable: 'bg-emerald-500/15 text-emerald-400',
+    credito_firme: 'bg-red-500/20 text-red-300',
+    no_localizado: 'bg-orange-500/20 text-orange-300',
+    credito_cancelado: 'bg-yellow-500/20 text-yellow-300',
+    sentencia_condenatoria: 'bg-red-500/20 text-red-300',
+}
+
+const ART_STATUS_LABELS: Record<string, string> = {
+    definitivo: 'Definitivo',
+    presunto: 'Presunto',
+    desvirtuado: 'Desvirtuado',
+    sentencia_favorable: 'Sent. Favorable',
+    credito_firme: 'Crédito Firme',
+    no_localizado: 'No Localizado',
+    credito_cancelado: 'Créd. Cancelado',
+    sentencia_condenatoria: 'Sent. Condenatoria',
+}
+
+function StatusPill({ status }: { status: string }) {
+    const color = ART_STATUS_COLORS[status] || 'bg-previa-surface text-previa-muted'
+    const label = ART_STATUS_LABELS[status] || status
+    return (
+        <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold ${color}`}>
+            {label}
+        </span>
+    )
+}
+
+// ── Tag inline editor ────────────────────────────────────────────────────────
 
 function TagEditor({
     current,
@@ -67,16 +132,52 @@ function TagEditor({
     )
 }
 
-// ── Main CRM Page ─────────────────────────────────────────────────────────────
+// ── Sort helpers ─────────────────────────────────────────────────────────────
+
+type SortKey = 'rfc' | 'razon_social' | 'risk' | 'art_69b' | 'last_screened'
+type SortDir = 'asc' | 'desc'
+
+const RISK_ORDER: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, CLEAR: 0 }
+
+function sortRows(rows: EmpresaRow[], key: SortKey, dir: SortDir): EmpresaRow[] {
+    const sorted = [...rows].sort((a, b) => {
+        let cmp = 0
+        switch (key) {
+            case 'rfc': cmp = a.rfc.localeCompare(b.rfc); break
+            case 'razon_social': cmp = a.razon_social.localeCompare(b.razon_social); break
+            case 'risk': cmp = (RISK_ORDER[(a.risk_level || 'CLEAR')] ?? 0) - (RISK_ORDER[(b.risk_level || 'CLEAR')] ?? 0); break
+            case 'art_69b': cmp = (a.art_69b_status || '').localeCompare(b.art_69b_status || ''); break
+            case 'last_screened': cmp = (a.last_screened_at || '').localeCompare(b.last_screened_at || ''); break
+        }
+        return dir === 'asc' ? cmp : -cmp
+    })
+    return sorted
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+    if (!active) return <ChevronDown className="w-3 h-3 text-previa-muted/40" />
+    return dir === 'asc'
+        ? <ChevronUp className="w-3 h-3 text-previa-accent" />
+        : <ChevronDown className="w-3 h-3 text-previa-accent" />
+}
+
+// ── Main CRM Page ────────────────────────────────────────────────────────────
 
 export default function CRMPage() {
+    return (
+        <Suspense fallback={null}>
+            <CRMPageContent />
+        </Suspense>
+    )
+}
+
+function CRMPageContent() {
     const params = useParams()
     const searchParams = useSearchParams()
     const router = useRouter()
     const orgId = Number(params.orgId)
     const { openUploadModal } = useUploadModal()
 
-    // ── Data state ────────────────────────────────────────────────────────────
     const [org, setOrg] = useState<Organization | null>(null)
     const [empresas, setEmpresas] = useState<EmpresaRow[]>([])
     const [tags, setTags] = useState<string[]>([])
@@ -84,22 +185,21 @@ export default function CRMPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
 
-    // ── Filter state ──────────────────────────────────────────────────────────
     const [activeTag, setActiveTag] = useState<string>(searchParams.get('tag') || '')
     const [activeWlId, setActiveWlId] = useState<number | undefined>(
         searchParams.get('wl') ? Number(searchParams.get('wl')) : undefined
     )
     const [searchQ, setSearchQ] = useState('')
 
-    // ── View state ────────────────────────────────────────────────────────────
     const [viewMode, setViewMode] = useState<'table' | 'grouped'>('table')
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
-    // ── Editing state ─────────────────────────────────────────────────────────
+    const [sortKey, setSortKey] = useState<SortKey>('risk')
+    const [sortDir, setSortDir] = useState<SortDir>('desc')
+
     const [editingId, setEditingId] = useState<number | null>(null)
     const [savingId, setSavingId] = useState<number | null>(null)
 
-    // ── Chat context (for sidebar) ────────────────────────────────────────────
     const [chatContext, setChatContext] = useState<ChatContext>({})
 
     const load = useCallback(async () => {
@@ -125,7 +225,7 @@ export default function CRMPage() {
 
     useEffect(() => { load() }, [load])
 
-    // ── Filtered rows ─────────────────────────────────────────────────────────
+    // ── Filter + sort ────────────────────────────────────────────────────────
     const filtered = empresas.filter((row) => {
         if (activeTag && row.group_tag !== activeTag) return false
         if (activeWlId && row.watchlist_id !== activeWlId) return false
@@ -135,8 +235,17 @@ export default function CRMPage() {
         }
         return true
     })
+    const sorted = sortRows(filtered, sortKey, sortDir)
 
-    // ── Tag save ──────────────────────────────────────────────────────────────
+    const handleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortKey(key)
+            setSortDir('desc')
+        }
+    }
+
     const saveTag = async (row: EmpresaRow, newTag: string) => {
         setSavingId(row.id)
         try {
@@ -160,17 +269,60 @@ export default function CRMPage() {
         setChatContext({ organization: orgName, watchlist: wlName, watchlist_id: wlId })
     }
 
-    // ── Table row ─────────────────────────────────────────────────────────────
+    // ── Column definitions ───────────────────────────────────────────────────
+    const columns: { key: string; label: string; sortable?: SortKey; width?: string }[] = [
+        { key: 'rfc', label: 'RFC', sortable: 'rfc', width: 'w-36' },
+        { key: 'razon_social', label: 'Razón Social', sortable: 'razon_social' },
+        { key: 'risk', label: 'Riesgo', sortable: 'risk', width: 'w-28' },
+        { key: 'art_69b', label: 'Art. 69-B', sortable: 'art_69b', width: 'w-28' },
+        { key: 'art_69', label: 'Art. 69', width: 'w-32' },
+        { key: 'art_69_bis', label: '69-B Bis', width: 'w-20' },
+        { key: 'art_49_bis', label: '49 BIS', width: 'w-20' },
+        { key: 'watchlist', label: 'Watchlist', width: 'w-28' },
+        { key: 'tag', label: 'Tag', width: 'w-28' },
+        { key: 'screened', label: 'Escaneo', sortable: 'last_screened', width: 'w-24' },
+    ]
+
+    // ── Row renderer ─────────────────────────────────────────────────────────
     const renderRow = (row: EmpresaRow) => (
         <tr key={row.id} className="border-b border-previa-border hover:bg-previa-surface-hover/40 transition-colors group">
-            <td className="px-4 py-3 font-mono text-xs text-previa-accent whitespace-nowrap">{row.rfc}</td>
-            <td className="px-4 py-3 text-sm text-previa-ink max-w-xs truncate">{row.razon_social}</td>
-            <td className="px-4 py-3">
-                <span className="text-xs px-2 py-0.5 rounded-full bg-previa-background border border-previa-border text-previa-muted">
+            <td className="px-3 py-2.5 font-mono text-xs text-previa-accent whitespace-nowrap">{row.rfc}</td>
+            <td className="px-3 py-2.5 text-sm text-previa-ink max-w-[200px] truncate">{row.razon_social}</td>
+            <td className="px-3 py-2.5"><RiskBadge level={row.risk_level} /></td>
+            <td className="px-3 py-2.5">
+                {row.art_69b_status
+                    ? <StatusPill status={row.art_69b_status} />
+                    : <span className="text-[10px] text-previa-muted/50">—</span>
+                }
+            </td>
+            <td className="px-3 py-2.5">
+                <div className="flex flex-wrap gap-1">
+                    {(row.art_69_categories || []).map((c) => (
+                        <StatusPill key={c} status={c} />
+                    ))}
+                    {(!row.art_69_categories || row.art_69_categories.length === 0) && (
+                        <span className="text-[10px] text-previa-muted/50">—</span>
+                    )}
+                </div>
+            </td>
+            <td className="px-3 py-2.5 text-center">
+                {row.art_69_bis_found
+                    ? <span className="text-[10px] font-bold text-red-400">SI</span>
+                    : <span className="text-[10px] text-previa-muted/50">—</span>
+                }
+            </td>
+            <td className="px-3 py-2.5 text-center">
+                {row.art_49_bis_found
+                    ? <span className="text-[10px] font-bold text-red-400">SI</span>
+                    : <span className="text-[10px] text-previa-muted/50">—</span>
+                }
+            </td>
+            <td className="px-3 py-2.5">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-previa-background border border-previa-border text-previa-muted truncate max-w-[100px] inline-block">
                     {row.watchlist_name}
                 </span>
             </td>
-            <td className="px-4 py-3">
+            <td className="px-3 py-2.5">
                 {editingId === row.id ? (
                     <TagEditor
                         current={row.group_tag ?? ''}
@@ -181,10 +333,10 @@ export default function CRMPage() {
                 ) : savingId === row.id ? (
                     <Loader2 className="w-4 h-4 animate-spin text-previa-muted" />
                 ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                         {row.group_tag
                             ? <TagBadge tag={row.group_tag} />
-                            : <span className="text-xs text-previa-muted italic">sin tag</span>
+                            : <span className="text-xs text-previa-muted italic">—</span>
                         }
                         <button
                             onClick={() => setEditingId(row.id)}
@@ -196,14 +348,25 @@ export default function CRMPage() {
                     </div>
                 )}
             </td>
-            <td className="px-4 py-3 text-xs text-previa-muted whitespace-nowrap">
-                {row.added_at ? new Date(row.added_at).toLocaleDateString('es-MX') : '—'}
+            <td className="px-3 py-2.5 text-[10px] text-previa-muted whitespace-nowrap">
+                {row.last_screened_at
+                    ? new Date(row.last_screened_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+                    : <span className="text-previa-muted/40">Sin escaneo</span>
+                }
             </td>
         </tr>
     )
 
-    // ── Grouped view ──────────────────────────────────────────────────────────
-    const grouped = filtered.reduce<Record<string, EmpresaRow[]>>((acc, row) => {
+    // ── Summary stats ────────────────────────────────────────────────────────
+    const stats = {
+        critical: sorted.filter(r => r.risk_level === 'CRITICAL').length,
+        high: sorted.filter(r => r.risk_level === 'HIGH').length,
+        medium: sorted.filter(r => r.risk_level === 'MEDIUM').length,
+        clear: sorted.filter(r => !r.risk_level || r.risk_level === 'CLEAR' || r.risk_level === 'LOW').length,
+    }
+
+    // ── Grouped view ─────────────────────────────────────────────────────────
+    const grouped = sorted.reduce<Record<string, EmpresaRow[]>>((acc, row) => {
         const key = row.group_tag || '(sin tag)'
         if (!acc[key]) acc[key] = []
         acc[key].push(row)
@@ -227,9 +390,9 @@ export default function CRMPage() {
                                         {org?.name ?? 'Organización'} — Base de Empresas
                                     </h1>
                                     <p className="text-xs text-previa-muted">
-                                        {filtered.length} empresa{filtered.length !== 1 ? 's' : ''}
-                                        {activeTag ? ` · tag: ${activeTag}` : ''}
-                                        {activeWlId ? ` · watchlist: ${watchlists.find(w => w.id === activeWlId)?.name}` : ''}
+                                        {sorted.length} empresa{sorted.length !== 1 ? 's' : ''}
+                                        {stats.critical > 0 && <span className="ml-2 text-red-400">{stats.critical} criticas</span>}
+                                        {stats.high > 0 && <span className="ml-2 text-orange-400">{stats.high} altas</span>}
                                     </p>
                                 </div>
                             </div>
@@ -255,7 +418,6 @@ export default function CRMPage() {
                     {/* Toolbar */}
                     <div className="bg-previa-surface border-b border-previa-border px-6 py-2 flex-shrink-0">
                         <div className="flex items-center gap-3 flex-wrap">
-                            {/* Tag filter tabs */}
                             <div className="flex items-center gap-1 overflow-x-auto">
                                 <button
                                     onClick={() => setActiveTag('')}
@@ -276,7 +438,6 @@ export default function CRMPage() {
 
                             <div className="flex-1" />
 
-                            {/* Watchlist filter */}
                             <select
                                 value={activeWlId ?? ''}
                                 onChange={(e) => setActiveWlId(e.target.value ? Number(e.target.value) : undefined)}
@@ -288,7 +449,6 @@ export default function CRMPage() {
                                 ))}
                             </select>
 
-                            {/* Search */}
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-previa-muted" />
                                 <input
@@ -300,7 +460,6 @@ export default function CRMPage() {
                                 />
                             </div>
 
-                            {/* View toggle */}
                             <div className="flex items-center rounded-lg border border-previa-border overflow-hidden">
                                 <button
                                     onClick={() => setViewMode('table')}
@@ -321,7 +480,7 @@ export default function CRMPage() {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-auto">
                         {loading ? (
                             <div className="flex items-center justify-center h-64">
                                 <Loader2 className="w-6 h-6 animate-spin text-previa-muted" />
@@ -330,7 +489,7 @@ export default function CRMPage() {
                             <div className="m-6 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm">
                                 {error}
                             </div>
-                        ) : filtered.length === 0 ? (
+                        ) : sorted.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-64 text-center px-6">
                                 <Building2 className="w-10 h-10 text-previa-muted/40 mb-3" />
                                 <p className="text-previa-muted text-sm mb-1">No hay empresas</p>
@@ -350,27 +509,35 @@ export default function CRMPage() {
                                 )}
                             </div>
                         ) : viewMode === 'table' ? (
-                            // ── Table view ────────────────────────────────────
-                            <table className="w-full text-left min-w-[640px]">
-                                <thead className="bg-previa-surface border-b border-previa-border sticky top-0 z-10">
-                                    <tr>
-                                        {['RFC', 'Razón Social', 'Watchlist', 'Tag', 'Alta'].map((h) => (
-                                            <th key={h} className="px-4 py-2.5 text-xs font-semibold text-previa-muted uppercase tracking-wider">
-                                                {h}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filtered.map(renderRow)}
-                                </tbody>
-                            </table>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left min-w-[960px]">
+                                    <thead className="bg-previa-surface border-b border-previa-border sticky top-0 z-10">
+                                        <tr>
+                                            {columns.map((col) => (
+                                                <th
+                                                    key={col.key}
+                                                    className={`px-3 py-2.5 text-[10px] font-semibold text-previa-muted uppercase tracking-wider ${col.width || ''} ${col.sortable ? 'cursor-pointer select-none hover:text-previa-ink' : ''}`}
+                                                    onClick={col.sortable ? () => handleSort(col.sortable!) : undefined}
+                                                >
+                                                    <span className="inline-flex items-center gap-1">
+                                                        {col.label}
+                                                        {col.sortable && <SortIcon active={sortKey === col.sortable} dir={sortDir} />}
+                                                    </span>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sorted.map(renderRow)}
+                                    </tbody>
+                                </table>
+                            </div>
                         ) : (
-                            // ── Grouped view ──────────────────────────────────
                             <div className="p-6 space-y-4">
                                 {groupKeys.map((gKey) => {
                                     const rows = grouped[gKey]
                                     const collapsed = collapsedGroups.has(gKey)
+                                    const groupCritical = rows.filter(r => r.risk_level === 'CRITICAL').length
                                     return (
                                         <div key={gKey} className="bg-previa-surface border border-previa-border rounded-xl overflow-hidden">
                                             <button
@@ -387,16 +554,19 @@ export default function CRMPage() {
                                                         : <span className="text-xs text-previa-muted italic">{gKey}</span>
                                                     }
                                                     <span className="text-xs text-previa-muted font-mono">{rows.length}</span>
+                                                    {groupCritical > 0 && (
+                                                        <span className="text-[10px] text-red-400 font-bold">{groupCritical} criticas</span>
+                                                    )}
                                                 </div>
                                             </button>
                                             {!collapsed && (
-                                                <div className="border-t border-previa-border">
-                                                    <table className="w-full text-left">
+                                                <div className="border-t border-previa-border overflow-x-auto">
+                                                    <table className="w-full text-left min-w-[960px]">
                                                         <thead className="bg-previa-background/50">
                                                             <tr>
-                                                                {['RFC', 'Razón Social', 'Watchlist', 'Tag', 'Alta'].map((h) => (
-                                                                    <th key={h} className="px-4 py-2 text-xs font-semibold text-previa-muted uppercase tracking-wider">
-                                                                        {h}
+                                                                {columns.map((col) => (
+                                                                    <th key={col.key} className={`px-3 py-2 text-[10px] font-semibold text-previa-muted uppercase tracking-wider ${col.width || ''}`}>
+                                                                        {col.label}
                                                                     </th>
                                                                 ))}
                                                             </tr>
@@ -411,6 +581,17 @@ export default function CRMPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Footer stats bar */}
+                    {sorted.length > 0 && (
+                        <div className="bg-previa-surface border-t border-previa-border px-6 py-2 flex items-center gap-4 text-[10px] text-previa-muted flex-shrink-0">
+                            <span>{sorted.length} empresas</span>
+                            <span className="text-red-400">{stats.critical} CRITICAL</span>
+                            <span className="text-orange-400">{stats.high} HIGH</span>
+                            <span className="text-yellow-400">{stats.medium} MEDIUM</span>
+                            <span className="text-emerald-400">{stats.clear} CLEAR/LOW</span>
+                        </div>
+                    )}
                 </main>
             </div>
         </AuthGuard>

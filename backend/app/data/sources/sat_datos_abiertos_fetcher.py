@@ -1,31 +1,121 @@
 """
 Previa App — SAT Datos Abiertos fetcher.
-Fetches http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos/ for public
-lists (contribuyentes publicados, controversia, sat_mas_abierto, etc.) to index for alerts.
+Downloads the actual Excel/CSV files from SAT Datos Abiertos landing pages
+and parses them with pandas to extract RFCs + statuses for each article type.
+
+Landing pages:
+  - http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos/contribuyentes_publicados.html
+  - http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos/controversia.html
+  - http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos/sat_mas_abierto.html
+
+Each page contains download links (.xlsx, .csv) to the real datasets.
 """
 
+import io
 import logging
 import re
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
+from urllib.parse import urljoin
+
 import httpx
+import pandas as pd
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
 SAT_BASE = "http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos"
-# Pages to index (from user requirements)
+
 SAT_PAGES = [
-    ("index.html", "sat_datos_abiertos_index"),
     ("contribuyentes_publicados.html", "contribuyentes_publicados"),
     ("controversia.html", "controversia"),
     ("sat_mas_abierto.html", "sat_mas_abierto"),
 ]
+
 RFC_PATTERN = re.compile(r"\b([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})\b")
+
+# ── Mapping: link text keywords → (article_type, status/category) ──────────
+# The SAT page link text (anchor inner text) identifies which list is being
+# linked.  We match case-insensitively.  Order matters: first match wins.
+
+FILE_CLASSIFICATION: List[Tuple[str, str, Optional[str]]] = [
+    # Art. 69-B
+    ("definitivo",            "art_69b",  "definitivo"),
+    ("presunto",              "art_69b",  "presunto"),
+    ("desvirtuado",           "art_69b",  "desvirtuado"),
+    ("sentencia favorable",   "art_69b",  "sentencia_favorable"),
+    ("sentencias favorable",  "art_69b",  "sentencia_favorable"),
+    ("listado completo",      "art_69b",  None),             # mixed statuses
+
+    # Art. 69-B Bis
+    ("listado global",        "art_69_bis", "definitivo"),
+    ("69-b bis",              "art_69_bis", None),
+
+    # Art. 69
+    ("firme",                 "art_69",   "credito_firme"),
+    ("no localizado",         "art_69",   "no_localizado"),
+    ("cancelado",             "art_69",   "credito_cancelado"),
+    ("sentencia",             "art_69",   "sentencia_condenatoria"),
+    ("exigible",              "art_69",   "credito_firme"),
+    ("csd sin efecto",        "art_69",   None),
+    ("omisos",                "art_69",   None),
+    ("retorno",               "art_69",   None),
+    ("condonado",             "art_69",   "credito_cancelado"),
+    ("reducción de multa",    "art_69",   "credito_cancelado"),
+    ("reducción de recargo",  "art_69",   "credito_cancelado"),
+]
+
+
+def _classify_link(link_text: str) -> Tuple[str, Optional[str]]:
+    """Return (article_type, status_or_category) for a download link."""
+    text = link_text.lower().strip()
+    for keyword, article_type, status in FILE_CLASSIFICATION:
+        if keyword in text:
+            return article_type, status
+    return "art_69b", None
+
+
+def _find_rfc_column(df: pd.DataFrame) -> Optional[str]:
+    """Locate the column that holds RFCs (by name heuristic or content sampling)."""
+    for col in df.columns:
+        name = str(col).strip().upper()
+        if name in ("RFC", "R.F.C.", "RFC_CONTRIBUYENTE", "RFC CONTRIBUYENTE"):
+            return str(col)
+
+    for col in df.columns:
+        sample = df[col].dropna().head(20).astype(str)
+        matches = sample.apply(lambda v: bool(RFC_PATTERN.fullmatch(v.strip().upper())))
+        if matches.sum() >= max(1, len(sample) * 0.4):
+            return str(col)
+    return None
+
+
+def _find_razon_column(df: pd.DataFrame, rfc_col: str) -> Optional[str]:
+    """Best-effort: find the 'razon social' or 'nombre' column."""
+    for col in df.columns:
+        name = str(col).strip().upper()
+        if col == rfc_col:
+            continue
+        if any(kw in name for kw in ("RAZON", "RAZÓN", "NOMBRE", "DENOMINACION", "DENOMINACIÓN")):
+            return str(col)
+    return None
+
+
+def _find_status_column(df: pd.DataFrame) -> Optional[str]:
+    """Find a column that might contain the status (presunto/definitivo/etc.)."""
+    for col in df.columns:
+        name = str(col).strip().upper()
+        if any(kw in name for kw in ("SITUACION", "SITUACIÓN", "ESTATUS", "STATUS", "SUPUESTO")):
+            return str(col)
+    return None
 
 
 class SATDatosAbiertosFetcher:
-    """Fetch and parse SAT Datos Abiertos pages for RFC lists and links."""
+    """Fetch SAT Datos Abiertos landing pages, download linked Excel/CSV files,
+    and parse them to extract RFC + classification data."""
+
+    TIMEOUT = 60.0
+    MAX_FILE_SIZE = 150 * 1024 * 1024  # 150 MB cap per file
 
     @classmethod
     def _url(cls, path: str) -> str:
@@ -34,97 +124,177 @@ class SATDatosAbiertosFetcher:
         return f"{SAT_BASE}/{path}"
 
     @classmethod
-    async def fetch_page(cls, path: str) -> str | None:
-        """Fetch one SAT Datos Abiertos page."""
+    async def _get(cls, url: str, timeout: float | None = None) -> httpx.Response:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=timeout or cls.TIMEOUT) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            return resp
+
+    # ── Step 1: fetch landing page and extract download links ─────────────
+
+    @classmethod
+    async def fetch_page(cls, path: str) -> Optional[str]:
         url = cls._url(path)
         try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=25.0) as client:
-                resp = await client.get(url)
-                resp.raise_for_status()
-                return resp.text
+            resp = await cls._get(url, timeout=25.0)
+            return resp.text
         except Exception as e:
-            logger.warning("SAT Datos Abiertos fetch %s failed: %s", url, e)
+            logger.warning("SAT fetch %s failed: %s", url, e)
             return None
 
     @classmethod
-    def parse_tables_for_rfcs(cls, html: str, source_url: str, article_type: str) -> List[Dict[str, Any]]:
-        """Parse HTML tables for RFC column and build notice records."""
+    def extract_download_links(cls, html: str, base_url: str) -> List[Dict[str, str]]:
+        """Extract download links (.xlsx, .xls, .csv) with their anchor text."""
         soup = BeautifulSoup(html, "html.parser")
-        rows = []
-        for table in soup.find_all("table"):
-            for tr in table.find_all("tr"):
-                cells = tr.find_all(["td", "th"])
-                if not cells:
-                    continue
-                text = " ".join(c.get_text(strip=True) for c in cells)
-                rfcs = RFC_PATTERN.findall(text.upper())
-                # Try to get razon_social from adjacent cell (often next to RFC)
-                razon = None
-                for c in cells:
-                    t = c.get_text(strip=True)
-                    if RFC_PATTERN.match(t) and len(cells) > 1:
-                        idx = cells.index(c)
-                        if idx + 1 < len(cells):
-                            razon = cells[idx + 1].get_text(strip=True)[:300]
-                        break
-                for rfc in rfcs:
-                    rows.append({
-                        "source": "sat_datos_abiertos",
-                        "source_url": source_url,
-                        "dof_url": None,
-                        "rfc": rfc,
-                        "razon_social": razon,
-                        "article_type": article_type,
-                        "status": None,
-                        "category": None,
-                        "oficio_number": None,
-                        "authority": "SAT",
-                        "motivo": text[:500] if len(text) <= 500 else None,
-                        "published_at": None,
-                        "raw_snippet": text[:1000],
-                    })
-        return rows
-
-    @classmethod
-    def parse_links_to_data(cls, html: str, base_url: str) -> List[str]:
-        """Extract links to Excel/CSV/PDF that might contain RFC lists."""
-        soup = BeautifulSoup(html, "html.parser")
-        links = []
+        links: List[Dict[str, str]] = []
+        seen = set()
         for a in soup.find_all("a", href=True):
-            href = a.get("href", "")
+            href = a.get("href", "").strip()
             lower = href.lower()
-            if any(lower.endswith(ext) for ext in (".xlsx", ".xls", ".csv", ".pdf")):
-                if not href.startswith("http"):
-                    href = base_url.rsplit("/", 1)[0] + "/" + href.lstrip("/")
-                links.append(href)
-        return list(dict.fromkeys(links))
+            if not any(lower.endswith(ext) for ext in (".xlsx", ".xls", ".csv")):
+                continue
+            if not href.startswith("http"):
+                href = urljoin(base_url, href)
+            if href in seen:
+                continue
+            seen.add(href)
+            text = a.get_text(strip=True) or ""
+            parent_text = ""
+            for parent in a.parents:
+                if parent.name in ("li", "p", "td", "div"):
+                    parent_text = parent.get_text(strip=True)[:300]
+                    break
+            links.append({
+                "url": href,
+                "link_text": text,
+                "context_text": parent_text,
+            })
+        return links
+
+    # ── Step 2: download and parse a single file ─────────────────────────
 
     @classmethod
-    async def run(cls, limit_per_page: int = 500) -> List[Dict[str, Any]]:
+    async def download_file(cls, url: str) -> Optional[bytes]:
+        try:
+            resp = await cls._get(url, timeout=cls.TIMEOUT)
+            data = resp.content
+            if len(data) > cls.MAX_FILE_SIZE:
+                logger.warning("SAT file %s exceeds size limit (%d bytes), skipping", url, len(data))
+                return None
+            return data
+        except Exception as e:
+            logger.warning("SAT download %s failed: %s", url, e)
+            return None
+
+    @classmethod
+    def parse_file_to_df(cls, data: bytes, url: str) -> Optional[pd.DataFrame]:
+        """Read bytes into a pandas DataFrame (Excel or CSV)."""
+        lower = url.lower()
+        try:
+            if lower.endswith(".csv"):
+                for enc in ("utf-8", "latin-1", "cp1252"):
+                    try:
+                        return pd.read_csv(io.BytesIO(data), encoding=enc, dtype=str)
+                    except UnicodeDecodeError:
+                        continue
+                return pd.read_csv(io.BytesIO(data), encoding="latin-1", dtype=str, on_bad_lines="skip")
+            elif lower.endswith(".xlsx"):
+                return pd.read_excel(io.BytesIO(data), engine="openpyxl", dtype=str)
+            elif lower.endswith(".xls"):
+                return pd.read_excel(io.BytesIO(data), engine="xlrd", dtype=str)
+        except Exception as e:
+            logger.warning("SAT parse %s failed: %s", url, e)
+        return None
+
+    @classmethod
+    def extract_notices_from_df(
+        cls,
+        df: pd.DataFrame,
+        source_url: str,
+        article_type: str,
+        default_status: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        """Convert a DataFrame into a list of notice dicts for PublicNotice."""
+        rfc_col = _find_rfc_column(df)
+        if not rfc_col:
+            logger.info("No RFC column found in %s (%d rows, cols=%s)", source_url, len(df), list(df.columns)[:10])
+            return []
+
+        razon_col = _find_razon_column(df, rfc_col)
+        status_col = _find_status_column(df) if default_status is None else None
+
+        notices = []
+        for _, row in df.iterrows():
+            raw_rfc = str(row.get(rfc_col, "")).strip().upper()
+            if not RFC_PATTERN.fullmatch(raw_rfc):
+                continue
+
+            razon = str(row[razon_col]).strip()[:300] if razon_col and pd.notna(row.get(razon_col)) else None
+
+            status = default_status
+            if status_col and pd.notna(row.get(status_col)):
+                status = str(row[status_col]).strip().lower()
+
+            notices.append({
+                "source": "sat_datos_abiertos",
+                "source_url": source_url,
+                "dof_url": None,
+                "rfc": raw_rfc,
+                "razon_social": razon,
+                "article_type": article_type,
+                "status": status,
+                "category": status if article_type == "art_69" else None,
+                "oficio_number": None,
+                "authority": "SAT",
+                "motivo": None,
+                "published_at": None,
+                "raw_snippet": None,
+            })
+        return notices
+
+    # ── Step 3: orchestrate ──────────────────────────────────────────────
+
+    @classmethod
+    async def run(cls, max_files: int = 30) -> List[Dict[str, Any]]:
         """
-        Fetch each SAT Datos Abiertos page, parse tables for RFCs, return
-        list of notice dicts for PublicNotice upsert.
+        Fetch each SAT Datos Abiertos landing page, discover download links,
+        download Excel/CSV files, parse them, and return notice dicts.
         """
-        all_notices = []
+        all_notices: List[Dict[str, Any]] = []
+        files_processed = 0
+
         for path, label in SAT_PAGES:
             html = await cls.fetch_page(path)
             if not html:
                 continue
-            url = cls._url(path)
-            # Map page to article type for screening
-            if "contribuyentes_publicados" in label:
-                article_type = "art_69b"
-            elif "controversia" in label:
-                article_type = "art_69"
-            else:
-                article_type = "art_69b"
-            notices = cls.parse_tables_for_rfcs(html, url, article_type)
-            # Dedupe by RFC per page
-            seen = set()
-            for n in notices[:limit_per_page]:
-                key = (n["rfc"], n["source_url"])
-                if key not in seen:
-                    seen.add(key)
-                    all_notices.append(n)
-            logger.info("SAT Datos Abiertos %s: %s notices", label, len(notices))
+
+            base_url = cls._url(path)
+            links = cls.extract_download_links(html, base_url)
+            logger.info("SAT %s: found %d download links", label, len(links))
+
+            for link in links:
+                if files_processed >= max_files:
+                    break
+
+                context = link["link_text"] or link["context_text"]
+                article_type, status = _classify_link(context)
+
+                logger.info("SAT downloading: %s [%s / %s]", link["url"][-60:], article_type, status)
+                data = await cls.download_file(link["url"])
+                if data is None:
+                    continue
+
+                df = cls.parse_file_to_df(data, link["url"])
+                if df is None or df.empty:
+                    continue
+
+                notices = cls.extract_notices_from_df(df, link["url"], article_type, status)
+                logger.info("SAT %s: parsed %d RFCs from %s", label, len(notices), link["url"][-50:])
+                all_notices.extend(notices)
+                files_processed += 1
+
+            if files_processed >= max_files:
+                break
+
+        logger.info("SAT Datos Abiertos total: %d notices from %d files", len(all_notices), files_processed)
         return all_notices
