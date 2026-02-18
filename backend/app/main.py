@@ -90,9 +90,7 @@ async def lifespan(app: FastAPI):
                 await db.commit()
                 logger.info("Demo user created: %s (documented credentials)", default_demo_email)
 
-    # Seed demo SATDataset sentinel rows so the freshness-check has a row to
-    # query.  Use last_updated=None (never ingested) so the deferred ingestion
-    # task is NOT skipped on first boot — it will then download real SAT data.
+    # Seed SATDataset sentinel rows so ingestion_job can update freshness.
     from app.data.db.models import SATDataset
 
     async with AsyncSessionLocal() as db:
@@ -100,13 +98,11 @@ async def lifespan(app: FastAPI):
                         "art69_creditos_cancelados", "art69_sentencias", "art69_bis", "art49_bis"):
             r = await db.execute(select(SATDataset).where(SATDataset.dataset_name == ds_name))
             if r.scalar_one_or_none() is None:
-                # last_updated=None means "never fetched" → freshness gate will
-                # NOT skip ingestion on next startup, allowing a real download.
                 db.add(SATDataset(dataset_name=ds_name, last_updated=None, row_count=0))
         await db.commit()
-        logger.info("SAT dataset sentinel rows ensured (last_updated=None for fresh installs)")
+        logger.info("SAT dataset sentinel rows ensured")
 
-    # Scheduler (background SAT data refresh)
+    # Scheduler owns daily SAT ingestion + sweep (first run 30s after startup).
     from app.scheduler import start_scheduler, shutdown_scheduler
     from app.agent.tools.constitution import ConstitutionIngester
     import os
@@ -119,41 +115,6 @@ async def lifespan(app: FastAPI):
         logger.info("Constitution data not found — triggering initial ingestion...")
         import asyncio
         asyncio.create_task(ConstitutionIngester.process())
-
-    # Deferred ingestion: wait 60s so the app serves requests first, then skip
-    # if data was already ingested within the last 6 hours (avoids re-downloading
-    # large SAT Excel files on every Railway redeploy).
-    import asyncio
-    from datetime import datetime as _dt2
-    from app.data.sources.ingestion_job import run_ingestion
-    from app.data.sources.sweep_job import sweep_watchlist_companies
-    from app.data.db.models import SATDataset as _SATDataset2
-
-    async def _delayed_ingest_and_sweep():
-        await asyncio.sleep(60)  # let the app be fully ready before heavy work
-        try:
-            async with AsyncSessionLocal() as _db:
-                _r = await _db.execute(
-                    select(_SATDataset2).where(_SATDataset2.dataset_name == "lista_69b")
-                )
-                _row = _r.scalar_one_or_none()
-                if _row and _row.last_updated and (_row.row_count or 0) > 0:
-                    # Only skip if data was both recently updated AND has actual rows.
-                    # row_count=0 means only the sentinel was seeded, not real data.
-                    age_hours = (_dt2.utcnow() - _row.last_updated).total_seconds() / 3600
-                    if age_hours < 6:
-                        logger.info(
-                            "Skipping startup ingestion — data is %.1fh old, %d rows (< 6h threshold)",
-                            age_hours, _row.row_count,
-                        )
-                        return
-            logger.info("Starting deferred ingestion + sweep...")
-            await run_ingestion(sat_max_files=10)  # capped at startup to avoid memory saturation
-            await sweep_watchlist_companies()
-        except Exception as _e:
-            logger.exception("Deferred ingestion/sweep failed: %s", _e)
-
-    asyncio.create_task(_delayed_ingest_and_sweep())
 
     yield
 

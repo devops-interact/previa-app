@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime, timedelta
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -26,24 +28,21 @@ def start_scheduler():
             id='update_constitution',
             replace_existing=True
         )
-        # DOF + SAT ingestion every 6 hours, then sweep all watchlist companies
+        # SAT daily sweep: first run 30s after startup, then every 24h (no asyncio task)
         scheduler.add_job(
             _ingest_then_sweep,
-            CronTrigger(hour='*/6', minute=5),
-            id='ingest_and_sweep',
-            replace_existing=True
-        )
-        # Standalone daily sweep at 07:00 (catches newly added companies)
-        scheduler.add_job(
-            sweep_watchlist_companies,
-            CronTrigger(hour=7, minute=0),
-            id='daily_sweep',
-            replace_existing=True
+            "interval",
+            days=1,
+            start_date=datetime.utcnow() + timedelta(seconds=30),
+            id='daily_sat_sweep',
+            replace_existing=True,
+            max_instances=1,
+            misfire_grace_time=3600,
         )
         scheduler.start()
         logger.info(
             "Scheduler started. Jobs: update_constitution (Mon 3:00), "
-            "ingest_and_sweep (every 6h), daily_sweep (07:00)"
+            "daily_sat_sweep (30s after startup, then every 24h)"
         )
 
 

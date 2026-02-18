@@ -14,6 +14,7 @@ Each page contains download links (.xlsx, .csv) to the real datasets.
 import io
 import logging
 import re
+import zipfile
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from urllib.parse import urljoin
@@ -46,6 +47,21 @@ SAT_PAGES = [
 ]
 
 RFC_PATTERN = re.compile(r"\b([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})\b")
+
+# Extensions we treat as downloadable (including ZIP for archive extraction).
+DOWNLOAD_EXTS = (".xlsx", ".xls", ".csv", ".zip")
+
+# Known SAT file URLs used when HTML yields no usable links or no notices.
+# Format: (path_or_full_url, article_type, status). Paths are joined with SAT_BASE.
+KNOWN_SAT_FILES: List[Tuple[str, str, Optional[str]]] = [
+    ("Lista69B_Definitivos.zip", "art_69b", "definitivo"),
+    ("Lista69B_Presuntos.zip", "art_69b", "presunto"),
+    ("Lista69B_Desvirtuados.zip", "art_69b", "desvirtuado"),
+    ("Firmes.zip", "art_69", "credito_firme"),
+    ("NoLocalizados.zip", "art_69", "no_localizado"),
+    ("Cancelados.zip", "art_69", "credito_cancelado"),
+    ("Sentencias.zip", "art_69", "sentencia_condenatoria"),
+]
 
 # ── Mapping: link text keywords → (article_type, status/category) ──────────
 # The SAT page link text (anchor inner text) identifies which list is being
@@ -164,14 +180,14 @@ class SATDatosAbiertosFetcher:
 
     @classmethod
     def extract_download_links(cls, html: str, base_url: str) -> List[Dict[str, str]]:
-        """Extract download links (.xlsx, .xls, .csv) with their anchor text."""
+        """Extract download links (.xlsx, .xls, .csv, .zip) with their anchor text."""
         soup = BeautifulSoup(html, "html.parser")
         links: List[Dict[str, str]] = []
         seen = set()
         for a in soup.find_all("a", href=True):
             href = a.get("href", "").strip()
             lower = href.lower()
-            if not any(lower.endswith(ext) for ext in (".xlsx", ".xls", ".csv")):
+            if not any(lower.endswith(ext) for ext in DOWNLOAD_EXTS):
                 continue
             if not href.startswith("http"):
                 href = urljoin(base_url, href)
@@ -194,10 +210,20 @@ class SATDatosAbiertosFetcher:
     # ── Step 2: download and parse a single file ─────────────────────────
 
     @classmethod
-    async def download_file(cls, url: str) -> Optional[bytes]:
+    async def download_file(cls, url: str, referer: Optional[str] = None) -> Optional[bytes]:
         try:
-            resp = await cls._get(url, timeout=cls.TIMEOUT)
-            data = resp.content
+            headers = dict(_BROWSER_HEADERS)
+            if referer:
+                headers["Referer"] = referer
+            async with httpx.AsyncClient(
+                follow_redirects=True,
+                timeout=cls.TIMEOUT,
+                verify=False,
+                headers=headers,
+            ) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                data = resp.content
             if len(data) > cls.MAX_FILE_SIZE:
                 logger.warning("SAT file %s exceeds size limit (%d bytes), skipping", url, len(data))
                 return None
@@ -207,9 +233,47 @@ class SATDatosAbiertosFetcher:
             return None
 
     @classmethod
+    def _parse_single_sheet(cls, data: bytes, name: str) -> Optional[pd.DataFrame]:
+        """Parse a single Excel/CSV buffer (e.g. from a ZIP member)."""
+        lower = name.lower()
+        try:
+            if lower.endswith(".csv"):
+                for enc in ("utf-8", "latin-1", "cp1252"):
+                    try:
+                        return pd.read_csv(io.BytesIO(data), encoding=enc, dtype=str)
+                    except UnicodeDecodeError:
+                        continue
+                return pd.read_csv(io.BytesIO(data), encoding="latin-1", dtype=str, on_bad_lines="skip")
+            elif lower.endswith(".xlsx"):
+                return pd.read_excel(io.BytesIO(data), engine="openpyxl", dtype=str)
+            elif lower.endswith(".xls"):
+                return pd.read_excel(io.BytesIO(data), engine="xlrd", dtype=str)
+        except Exception as e:
+            logger.warning("SAT parse member %s failed: %s", name, e)
+        return None
+
+    @classmethod
     def parse_file_to_df(cls, data: bytes, url: str) -> Optional[pd.DataFrame]:
-        """Read bytes into a pandas DataFrame (Excel or CSV)."""
+        """Read bytes into a pandas DataFrame (Excel, CSV, or ZIP with inner .xlsx/.xls/.csv)."""
         lower = url.lower()
+        # ZIP: by URL or by magic (PK\x03\x04)
+        if lower.endswith(".zip") or (len(data) >= 4 and data[:4] == b"PK\x03\x04"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(data), "r") as zf:
+                    dfs: List[pd.DataFrame] = []
+                    for name in zf.namelist():
+                        if not any(name.lower().endswith(ext) for ext in (".xlsx", ".xls", ".csv")):
+                            continue
+                        member_data = zf.read(name)
+                        df = cls._parse_single_sheet(member_data, name)
+                        if df is not None and not df.empty:
+                            dfs.append(df)
+                    if not dfs:
+                        return None
+                    return pd.concat(dfs, ignore_index=True)
+            except Exception as e:
+                logger.warning("SAT ZIP %s failed: %s", url, e)
+                return None
         try:
             if lower.endswith(".csv"):
                 for enc in ("utf-8", "latin-1", "cp1252"):
@@ -300,7 +364,7 @@ class SATDatosAbiertosFetcher:
                 article_type, status = _classify_link(context)
 
                 logger.info("SAT downloading: %s [%s / %s]", link["url"][-60:], article_type, status)
-                data = await cls.download_file(link["url"])
+                data = await cls.download_file(link["url"], referer=base_url)
                 if data is None:
                     continue
 
@@ -315,6 +379,25 @@ class SATDatosAbiertosFetcher:
 
             if files_processed >= max_files:
                 break
+
+        # Fallback: if no links or no notices from HTML, try known SAT file URLs.
+        landing_url = cls._url("index.html")
+        if (not all_notices or files_processed == 0) and files_processed < max_files:
+            for path_or_url, article_type, status in KNOWN_SAT_FILES:
+                if files_processed >= max_files:
+                    break
+                url = cls._url(path_or_url) if not path_or_url.startswith("http") else path_or_url
+                logger.info("SAT fallback: %s [%s / %s]", url[-60:], article_type, status)
+                data = await cls.download_file(url, referer=landing_url)
+                if data is None:
+                    continue
+                df = cls.parse_file_to_df(data, url)
+                if df is None or df.empty:
+                    continue
+                notices = cls.extract_notices_from_df(df, url, article_type, status)
+                logger.info("SAT fallback: %d RFCs from %s", len(notices), url[-50:])
+                all_notices.extend(notices)
+                files_processed += 1
 
         logger.info("SAT Datos Abiertos total: %d notices from %d files", len(all_notices), files_processed)
         return all_notices
