@@ -92,20 +92,20 @@ export function ComplianceTable({ data }: ComplianceTableProps) {
     )
 
     return (
-        <div className="bg-previa-surface rounded-xl border border-previa-border overflow-hidden">
+        <div className="bg-previa-surface rounded-xl border border-previa-border overflow-hidden -mx-1 sm:mx-0">
             {selected.size > 0 && (
-                <div className="flex items-center gap-3 px-4 py-2 bg-previa-accent/5 border-b border-previa-accent/20">
+                <div className="flex items-center gap-3 px-3 sm:px-4 py-2 bg-previa-accent/5 border-b border-previa-accent/20">
                     <span className="text-xs text-previa-accent font-medium">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
                     <button className="text-xs text-previa-muted hover:text-previa-ink transition-colors" onClick={() => setSelected(new Set())}>
                         Deseleccionar
                     </button>
                 </div>
             )}
-            <div className="overflow-x-auto">
-                <table className="w-full">
+            <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+                <table className="w-full min-w-[640px]">
                     <thead className="bg-previa-surface-hover border-b border-previa-border">
                         <tr>
-                            <th className="w-10 px-3 py-3">
+                            <th className="w-10 px-2 sm:px-3 py-2 sm:py-3">
                                 <input
                                     type="checkbox"
                                     checked={allSelected}
@@ -113,22 +113,22 @@ export function ComplianceTable({ data }: ComplianceTableProps) {
                                     className="rounded border-previa-border bg-previa-background accent-blue-500 cursor-pointer"
                                 />
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-left">
                                 <ThBtn col="rfc" label="Empresa" />
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-left">
                                 <ThBtn col="art69" label="Art.69" />
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-left">
                                 <ThBtn col="art69B" label="Art.69-B" />
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-left">
                                 <ThBtn col="art69BIS" label="Art.69-BIS" />
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-left">
                                 <ThBtn col="art49BIS" label="Art.49-BIS" />
                             </th>
-                            <th className="w-10 px-3 py-3" />
+                            <th className="w-10 px-2 sm:px-3 py-2 sm:py-3" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-previa-border">
@@ -143,7 +143,7 @@ export function ComplianceTable({ data }: ComplianceTableProps) {
                                         : 'hover:bg-previa-surface-hover'
                                         }`}
                                 >
-                                    <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3" onClick={e => e.stopPropagation()}>
                                         <input
                                             type="checkbox"
                                             checked={isSelected}
@@ -151,17 +151,17 @@ export function ComplianceTable({ data }: ComplianceTableProps) {
                                             className="rounded border-previa-border bg-previa-background accent-blue-500 cursor-pointer"
                                         />
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-2 sm:px-4 py-2 sm:py-3">
                                         <div>
                                             <div className="text-xs font-mono font-semibold text-previa-ink">{row.rfc}</div>
-                                            <div className="text-[11px] text-previa-muted truncate max-w-[180px]">{row.empresa}</div>
+                                            <div className="text-[11px] text-previa-muted truncate max-w-[140px] sm:max-w-[180px]">{row.empresa}</div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3"><StatusChip value={row.art69} /></td>
-                                    <td className="px-4 py-3"><StatusChip value={row.art69B} /></td>
-                                    <td className="px-4 py-3"><StatusChip value={row.art69BIS} /></td>
-                                    <td className="px-4 py-3"><StatusChip value={row.art49BIS} /></td>
-                                    <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                                    <td className="px-2 sm:px-4 py-2 sm:py-3"><StatusChip value={row.art69} /></td>
+                                    <td className="px-2 sm:px-4 py-2 sm:py-3"><StatusChip value={row.art69B} /></td>
+                                    <td className="px-2 sm:px-4 py-2 sm:py-3"><StatusChip value={row.art69BIS} /></td>
+                                    <td className="px-2 sm:px-4 py-2 sm:py-3"><StatusChip value={row.art49BIS} /></td>
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3" onClick={e => e.stopPropagation()}>
                                         <button
                                             className="text-previa-muted hover:text-previa-ink transition-colors opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-previa-border"
                                             aria-label="Más opciones"

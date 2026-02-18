@@ -201,43 +201,41 @@ export default function TableroPage() {
                 <Sidebar onWatchlistSelect={handleWatchlistSelect} />
 
                 <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-                    {/* Top Navigation Bar — h-14 matches agent panel header */}
-                    <header className="h-14 flex items-center justify-between px-5 bg-previa-surface border-b border-previa-border flex-shrink-0">
-                        <div className="flex items-center space-x-3">
-                            <h1 className="text-sm font-semibold text-previa-ink">Tablero</h1>
+                    {/* Top bar: responsive — stack on mobile, row on sm+ */}
+                    <header className="min-h-14 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 sm:px-5 bg-previa-surface border-b border-previa-border flex-shrink-0">
+                        <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0">
+                            <h1 className="text-sm font-semibold text-previa-ink truncate">Tablero</h1>
                             {chatContext.watchlist && (
-                                <span className="text-xs text-previa-muted bg-previa-background border border-previa-border px-2 py-0.5 rounded-full truncate max-w-[200px]">
+                                <span className="hidden xs:inline-flex text-xs text-previa-muted bg-previa-background border border-previa-border px-2 py-0.5 rounded-full truncate max-w-[160px] sm:max-w-[200px]">
                                     {chatContext.organization} › {chatContext.watchlist}
                                 </span>
                             )}
                         </div>
 
-                        <div className="flex items-center space-x-2">
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-previa-muted" />
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <div className="relative flex-1 min-w-[120px] sm:flex-initial sm:w-auto">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-previa-muted pointer-events-none" />
                                 <input
                                     type="text"
                                     placeholder="Buscar RFC, empresa..."
-                                    className="pl-8 pr-3 py-1.5 bg-previa-background border border-previa-border rounded-lg text-xs text-previa-ink placeholder-previa-muted focus:outline-none focus:ring-1 focus:ring-previa-accent/60 focus:border-previa-accent transition-all w-44"
+                                    className="w-full sm:w-44 pl-8 pr-3 py-2 sm:py-1.5 bg-previa-background border border-previa-border rounded-lg text-xs text-previa-ink placeholder-previa-muted focus:outline-none focus:ring-1 focus:ring-previa-accent/60 focus:border-previa-accent transition-all"
                                 />
                             </div>
-
                             <button
                                 onClick={() => openUploadModal(chatContext)}
-                                className="flex items-center space-x-1.5 px-3 py-1.5 bg-previa-accent/10 text-previa-accent text-xs rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 active:scale-[0.97] transition-all"
+                                className="flex items-center justify-center space-x-1.5 px-3 py-2 sm:py-1.5 bg-previa-accent/10 text-previa-accent text-xs rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 active:scale-[0.97] transition-all flex-1 sm:flex-initial"
                             >
-                                <Upload className="w-3.5 h-3.5" />
+                                <Upload className="w-3.5 h-3.5 flex-shrink-0" />
                                 <span>Subir</span>
                             </button>
-
                             <button
                                 onClick={handleBellClick}
-                                className="relative text-previa-muted hover:text-previa-accent transition-colors p-1.5 rounded-lg hover:bg-previa-surface-hover"
+                                className="relative text-previa-muted hover:text-previa-accent transition-colors p-2 sm:p-1.5 rounded-lg hover:bg-previa-surface-hover"
                                 title={`${unreadCount} alertas`}
                             >
                                 <Bell className="w-4 h-4" />
                                 {unreadCount > 0 && (
-                                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold leading-none">
+                                    <span className="absolute top-1 right-1 sm:-top-0.5 sm:-right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold leading-none">
                                         {unreadCount > 9 ? '9+' : unreadCount}
                                     </span>
                                 )}
@@ -247,7 +245,7 @@ export default function TableroPage() {
 
                     {/* Scan progress bar */}
                     {scanProgress.active && (
-                        <div className="flex-shrink-0 px-5 pt-4">
+                        <div className="flex-shrink-0 px-4 pt-3 sm:px-5 sm:pt-4">
                             <div className="bg-previa-surface border border-previa-border rounded-xl px-4 py-3">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-xs font-semibold text-previa-ink">
@@ -266,21 +264,21 @@ export default function TableroPage() {
                         </div>
                     )}
 
-                    {/* Content Area */}
-                    <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                    {/* Content Area — responsive padding and spacing */}
+                    <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 space-y-5 sm:space-y-6">
                         {tableData.length === 0 && !scanProgress.active ? (
                             /* Empty state */
-                            <div className="flex flex-col items-center justify-center h-full text-center py-20">
-                                <FileSpreadsheet className="w-16 h-16 text-previa-muted/40 mb-4" />
-                                <h2 className="text-lg font-semibold text-previa-ink mb-1">
+                            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center py-12 sm:py-20 px-4">
+                                <FileSpreadsheet className="w-14 h-14 sm:w-16 sm:h-16 text-previa-muted/40 mb-4" />
+                                <h2 className="text-base sm:text-lg font-semibold text-previa-ink mb-2">
                                     Sin resultados
                                 </h2>
-                                <p className="text-sm text-previa-muted max-w-xs mb-5">
+                                <p className="text-sm text-previa-muted max-w-xs mb-6">
                                     Sube un dataset de proveedores o clientes para iniciar la verificación SAT.
                                 </p>
                                 <button
                                     onClick={() => openUploadModal(chatContext)}
-                                    className="flex items-center space-x-2 px-4 py-2 bg-previa-accent text-white text-sm rounded-lg hover:bg-previa-accent/90 transition-colors"
+                                    className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-previa-accent text-white text-sm rounded-lg hover:bg-previa-accent/90 transition-colors"
                                 >
                                     <Upload className="w-4 h-4" />
                                     <span>Subir dataset</span>
@@ -288,21 +286,21 @@ export default function TableroPage() {
                             </div>
                         ) : (
                             <>
-                                {/* Alert Cards */}
+                                {/* Alert Cards — 1 col mobile, 2 cols sm+ */}
                                 {activeAlerts.length > 0 && (
-                                    <div>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h2 className="text-sm font-semibold text-previa-muted uppercase tracking-wider">
+                                    <div className="section-gap">
+                                        <div className="flex items-center justify-between gap-2 mb-3">
+                                            <h2 className="text-xs sm:text-sm font-semibold text-previa-muted uppercase tracking-wider">
                                                 Alertas Activas
                                             </h2>
                                             <button
                                                 onClick={() => setAlertsMosaicOpen(true)}
-                                                className="text-xs text-previa-accent hover:underline"
+                                                className="text-xs text-previa-accent hover:underline whitespace-nowrap"
                                             >
                                                 Ver todas ({unreadCount})
                                             </button>
                                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             {activeAlerts.map((alert, idx) => (
                                 <button
                                     key={alert.id}
@@ -323,8 +321,10 @@ export default function TableroPage() {
                                     </div>
                                 )}
 
-                                {/* Compliance Table */}
-                                <ComplianceTable data={tableData} />
+                                {/* Compliance Table — responsive wrapper */}
+                                <div className="section-gap overflow-hidden">
+                                    <ComplianceTable data={tableData} />
+                                </div>
                             </>
                         )}
                     </div>

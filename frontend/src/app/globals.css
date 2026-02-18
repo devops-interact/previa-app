@@ -41,6 +41,28 @@ aside:hover ::-webkit-scrollbar-thumb { background: #2a2a3a; }
 @layer utilities {
   .text-balance { text-wrap: balance; }
 
+  /* Responsive app container: consistent max-width + horizontal padding */
+  .container-app {
+    width: 100%;
+    max-width: min(100%, 90rem);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (min-width: 640px) {
+    .container-app { padding-left: 1.5rem; padding-right: 1.5rem; }
+  }
+  @media (min-width: 1024px) {
+    .container-app { padding-left: 2rem; padding-right: 2rem; }
+  }
+
+  /* Section vertical rhythm */
+  .section-gap { margin-bottom: 1.5rem; }
+  @media (min-width: 640px) {
+    .section-gap { margin-bottom: 2rem; }
+  }
+
   /* Cursor-like "inner glow" on focused inputs */
   .input-cursor {
     @apply bg-previa-background border border-previa-border rounded-lg text-xs text-previa-ink

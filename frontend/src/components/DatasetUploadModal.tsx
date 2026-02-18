@@ -108,21 +108,21 @@ export function DatasetUploadModal({ isOpen, onClose, chatContext = {} }: Datase
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={onClose}
                 aria-hidden
             />
             <div
-                className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-previa-surface border border-previa-border shadow-2xl"
+                className="relative w-full max-w-2xl max-h-[90vh] sm:max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-previa-surface border border-previa-border border-b-0 sm:border-b shadow-2xl"
                 role="dialog"
                 aria-labelledby="upload-modal-title"
                 aria-modal="true"
             >
                 {/* Header */}
-                <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-previa-border bg-previa-surface">
-                    <h2 id="upload-modal-title" className="text-xl font-bold text-previa-ink">
+                <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-previa-border bg-previa-surface">
+                    <h2 id="upload-modal-title" className="text-lg sm:text-xl font-bold text-previa-ink">
                         Cargar Dataset
                     </h2>
                     <button
@@ -135,13 +135,13 @@ export function DatasetUploadModal({ isOpen, onClose, chatContext = {} }: Datase
                     </button>
                 </div>
 
-                <div className="px-6 pb-6 space-y-4">
-                    <p className="text-sm text-previa-muted pt-4">
+                <div className="px-4 sm:px-6 pb-6 sm:pb-8 space-y-4 sm:space-y-5">
+                    <p className="text-sm text-previa-muted pt-2 sm:pt-4">
                         Sube un archivo CSV o XLS para verificación SAT. El archivo crea una nueva watchlist en la organización seleccionada.
                     </p>
 
-                    {/* Org + watchlist name row */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Org + watchlist name — stack on mobile */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-previa-muted uppercase tracking-wider mb-1.5">
                                 Organización

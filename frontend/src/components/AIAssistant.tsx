@@ -2,7 +2,7 @@
 
 import {
     Send, Paperclip, Bot, User as UserIcon, Loader2,
-    CheckCircle2, AlertTriangle, FileSpreadsheet, Plus,
+    CheckCircle2, AlertTriangle, FileSpreadsheet, Plus, X,
 } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { ChatMessage, ChatContext, Alert, AlertSeverity } from '@/types'
@@ -136,12 +136,17 @@ interface AIAssistantProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+const AGENT_PANEL_MIN = 280
+const AGENT_PANEL_MAX = 640
+const AGENT_PANEL_DEFAULT = 340
+
 export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) {
     const { openUploadModal } = useUploadModal()
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
-    const [width, setWidth] = useState(340)
+    const [width, setWidth] = useState(AGENT_PANEL_DEFAULT)
+    const [mobileOpen, setMobileOpen] = useState(false)
 
     // Scan-through-agent state
     const [scanState, setScanState] = useState<{
@@ -155,6 +160,15 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [isLargeScreen, setIsLargeScreen] = useState(true)
+
+    useEffect(() => {
+        const mql = window.matchMedia('(min-width: 1024px)')
+        const handler = () => setIsLargeScreen(mql.matches)
+        handler()
+        mql.addEventListener('change', handler)
+        return () => mql.removeEventListener('change', handler)
+    }, [])
 
     // Auto-scroll
     useEffect(() => {
@@ -178,7 +192,7 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
         const onMove = (e: MouseEvent) => {
             if (!isDragging.current) return
             const delta = startX.current - e.clientX
-            setWidth(Math.max(280, Math.min(640, startWidth.current + delta)))
+            setWidth(Math.max(AGENT_PANEL_MIN, Math.min(AGENT_PANEL_MAX, startWidth.current + delta)))
         }
         const onUp = () => { isDragging.current = false }
         window.addEventListener('mousemove', onMove)
@@ -327,13 +341,43 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
     const isEmpty = messages.length === 0
 
     return (
-        <aside
-            style={{ width }}
-            className={`bg-previa-surface text-previa-ink flex flex-col h-screen font-mono border-l border-previa-border flex-shrink-0 relative transition-[border-color] duration-150 ${draggingOver ? 'border-previa-accent' : ''}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-        >
+        <>
+            {/* Mobile FAB — open agent panel on small screens */}
+            <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                className="lg:hidden fixed bottom-20 right-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl bg-previa-accent text-white shadow-lg shadow-previa-accent/25 hover:bg-previa-accent/90 active:scale-95 transition-all"
+                aria-label="Abrir agente fiscal"
+            >
+                <Bot className="w-5 h-5" />
+            </button>
+
+            {/* Mobile overlay backdrop when agent is open */}
+            {mobileOpen && (
+                <button
+                    type="button"
+                    aria-label="Cerrar agente"
+                    onClick={() => setMobileOpen(false)}
+                    className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
+                />
+            )}
+
+            <aside
+                style={isLargeScreen ? { width: `${width}px` } : undefined}
+                className={`
+                    bg-previa-surface text-previa-ink flex flex-col h-screen font-mono border-l border-previa-border flex-shrink-0 relative transition-[border-color] duration-150
+                    ${draggingOver ? 'border-previa-accent' : ''}
+                    lg:relative
+                    fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm
+                    lg:max-w-none
+                    transform transition-transform duration-200 ease-out
+                    ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}
+                    lg:translate-x-0
+                `}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
             {/* Drag overlay */}
             {draggingOver && (
                 <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-previa-background/80 backdrop-blur-sm pointer-events-none rounded-sm border-2 border-dashed border-previa-accent">
@@ -343,17 +387,17 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
                 </div>
             )}
 
-            {/* Resize handle */}
+            {/* Resize handle — hidden on mobile */}
             <div
                 onMouseDown={handleMouseDown}
-                className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-previa-accent/40 transition-colors z-10 group"
+                className="hidden lg:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-previa-accent/40 transition-colors z-10 group"
             >
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-full bg-previa-border group-hover:bg-previa-accent/60 transition-colors" />
             </div>
 
-            {/* Header — h-14 matches tablero header */}
-            <div className="h-14 flex items-center px-5 border-b border-previa-border flex-shrink-0">
-                <div className="flex items-center space-x-2.5 min-w-0">
+            {/* Header — h-14 matches tablero header; close button on mobile */}
+            <div className="h-14 flex items-center px-4 sm:px-5 border-b border-previa-border flex-shrink-0">
+                <div className="flex items-center space-x-2.5 min-w-0 flex-1">
                     <div className="w-7 h-7 rounded-lg bg-previa-accent/20 flex items-center justify-center shrink-0">
                         <Bot className="w-4 h-4 text-previa-accent" />
                     </div>
@@ -369,6 +413,14 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
                         </span>
                     </div>
                 )}
+                <button
+                    type="button"
+                    onClick={() => setMobileOpen(false)}
+                    className="lg:hidden ml-2 p-2 rounded-lg text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover"
+                    aria-label="Cerrar agente"
+                >
+                    <X className="w-5 h-5" />
+                </button>
             </div>
 
             {/* Messages */}
@@ -548,5 +600,6 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
                 />
             </div>
         </aside>
+        </>
     )
 }

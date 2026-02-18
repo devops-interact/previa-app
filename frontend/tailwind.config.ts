@@ -29,6 +29,17 @@ const config: Config = {
                 sans: ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'monospace'],
                 mono: ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'monospace'],
             },
+            spacing: {
+                'gutter': 'var(--gutter, 1rem)',
+                'section': 'var(--section-gap, 1.5rem)',
+            },
+            maxWidth: {
+                'app': 'min(100%, 90rem)',
+                'content': 'min(100%, 75rem)',
+            },
+            screens: {
+                'xs': '375px',
+            },
         },
     },
     plugins: [],

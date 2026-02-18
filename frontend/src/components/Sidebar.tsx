@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
     ChevronDown, ChevronRight, FileText, Settings, User, LogOut,
-    Building2, List, Plus, LayoutGrid,
+    Building2, List, Plus, LayoutGrid, Menu, X,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import type { Organization, Watchlist } from '@/types'
@@ -23,6 +23,12 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
     const [showOrgModal, setShowOrgModal] = useState(false)
     const [loadingOrgs, setLoadingOrgs] = useState(true)
     const [activeWatchlist, setActiveWatchlist] = useState<number | null>(null)
+    const [mobileOpen, setMobileOpen] = useState(false)
+
+    // Close mobile drawer on route change (e.g. after clicking a link)
+    useEffect(() => {
+        setMobileOpen(false)
+    }, [pathname])
 
     useEffect(() => {
         loadOrganizations()
@@ -95,14 +101,49 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
     return (
         <>
-            <aside className="w-64 bg-previa-surface border-r border-previa-border flex flex-col h-screen flex-shrink-0">
-                {/* Logo */}
-                <div className="p-6 border-b border-previa-border">
-                    <Link href="/tablero" className="text-xl font-bold text-previa-accent tracking-tight">
+            {/* Mobile menu button — visible only on small screens */}
+            <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                className="md:hidden fixed bottom-5 left-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl bg-previa-accent text-white shadow-lg shadow-previa-accent/25 hover:bg-previa-accent/90 active:scale-95 transition-all"
+                aria-label="Abrir menú"
+            >
+                <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Overlay when sidebar is open on mobile */}
+            {mobileOpen && (
+                <button
+                    type="button"
+                    aria-label="Cerrar menú"
+                    onClick={() => setMobileOpen(false)}
+                    className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity"
+                />
+            )}
+
+            <aside
+                className={`
+                    w-64 max-w-[85vw] bg-previa-surface border-r border-previa-border flex flex-col h-screen flex-shrink-0
+                    fixed left-0 top-0 z-50 transform transition-transform duration-200 ease-out
+                    md:relative md:translate-x-0 md:z-0 md:max-w-none
+                    ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+                `}
+            >
+                {/* Logo + mobile close */}
+                <div className="p-4 sm:p-5 border-b border-previa-border flex items-center justify-between gap-3">
+                    <Link href="/tablero" className="text-lg sm:text-xl font-bold text-previa-accent tracking-tight truncate" onClick={() => setMobileOpen(false)}>
                         Previa App
                     </Link>
-                    <p className="text-xs text-previa-muted mt-0.5">Cumplimiento Fiscal SAT</p>
+                    <button
+                        type="button"
+                        onClick={() => setMobileOpen(false)}
+                        className="md:hidden p-2 rounded-lg text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover"
+                        aria-label="Cerrar menú"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
+                <p className="text-xs text-previa-muted px-4 sm:px-5 -mt-2 pb-3 border-b border-previa-border">Cumplimiento Fiscal SAT</p>
 
                 {/* User Info */}
                 <div className="p-4 border-b border-previa-border flex items-center space-x-3">

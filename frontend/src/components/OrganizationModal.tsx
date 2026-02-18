@@ -84,10 +84,10 @@ export function OrganizationModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-previa-surface border border-previa-border rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6">
+            <div className="bg-previa-surface border border-previa-border rounded-2xl w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] flex flex-col shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between p-5 border-b border-previa-border">
+                <div className="flex items-center justify-between p-4 sm:p-5 border-b border-previa-border flex-shrink-0">
                     <div className="flex items-center space-x-2">
                         <Building2 className="w-5 h-5 text-previa-accent" />
                         <h2 className="text-lg font-semibold text-previa-ink">Organizaciones</h2>
@@ -116,7 +116,7 @@ export function OrganizationModal({
                     ))}
                 </div>
 
-                <div className="p-5 max-h-[60vh] overflow-y-auto">
+                <div className="p-4 sm:p-5 flex-1 min-h-0 overflow-y-auto">
                     {/* List tab */}
                     {tab === 'list' && (
                         <div className="space-y-3">

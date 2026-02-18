@@ -93,28 +93,28 @@ export default function ChatPage() {
                 <Sidebar onWatchlistSelect={handleWatchlistSelect} />
 
                 <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-                    {/* Header */}
-                    <header className="bg-previa-surface border-b border-previa-border px-6 py-3 flex-shrink-0">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 rounded-lg bg-previa-accent/20 flex items-center justify-center">
+                    {/* Header — responsive stack on mobile */}
+                    <header className="bg-previa-surface border-b border-previa-border px-4 py-3 sm:px-6 flex-shrink-0">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-previa-accent/20 flex items-center justify-center flex-shrink-0">
                                     <Bot className="w-4 h-4 text-previa-accent" />
                                 </div>
-                                <div>
-                                    <h1 className="text-base font-semibold text-previa-ink">Agente Fiscal IA</h1>
-                                    <p className="text-xs text-previa-muted">Previa App · Powered by Claude AI</p>
+                                <div className="min-w-0">
+                                    <h1 className="text-sm sm:text-base font-semibold text-previa-ink truncate">Agente Fiscal IA</h1>
+                                    <p className="text-xs text-previa-muted truncate">Previa App · Claude AI</p>
                                 </div>
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 {chatContext.watchlist && (
-                                    <span className="text-xs px-3 py-1 bg-previa-accent/10 text-previa-accent border border-previa-accent/30 rounded-full flex items-center space-x-1">
-                                        <Building2 className="w-3 h-3" />
-                                        <span>{chatContext.organization} › {chatContext.watchlist}</span>
+                                    <span className="text-xs px-2.5 py-1 bg-previa-accent/10 text-previa-accent border border-previa-accent/30 rounded-full flex items-center space-x-1 max-w-[180px] sm:max-w-none truncate">
+                                        <Building2 className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate">{chatContext.organization} › {chatContext.watchlist}</span>
                                     </span>
                                 )}
                                 <button
                                     onClick={() => openUploadModal(chatContext)}
-                                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-previa-accent/10 text-previa-accent text-xs rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 transition-colors"
+                                    className="flex items-center justify-center space-x-1.5 px-3 py-2 sm:py-1.5 bg-previa-accent/10 text-previa-accent text-xs rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 transition-colors"
                                 >
                                     <Upload className="w-3.5 h-3.5" />
                                     <span>Subir Datos</span>
@@ -122,7 +122,7 @@ export default function ChatPage() {
                                 {messages.length > 0 && (
                                     <button
                                         onClick={() => setMessages([])}
-                                        className="flex items-center space-x-1.5 px-3 py-1.5 text-previa-muted hover:text-previa-ink text-xs rounded-lg border border-previa-border hover:bg-previa-surface-hover transition-colors"
+                                        className="flex items-center space-x-1.5 px-3 py-2 sm:py-1.5 text-previa-muted hover:text-previa-ink text-xs rounded-lg border border-previa-border hover:bg-previa-surface-hover transition-colors"
                                     >
                                         <Plus className="w-3.5 h-3.5" />
                                         <span>Nueva sesión</span>
@@ -135,22 +135,22 @@ export default function ChatPage() {
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto">
                         {isEmpty ? (
-                            /* Welcome screen */
-                            <div className="max-w-2xl mx-auto px-6 py-12">
-                                <div className="text-center mb-10">
-                                    <div className="w-16 h-16 rounded-2xl bg-previa-accent/15 flex items-center justify-center mx-auto mb-4 border border-previa-accent/20">
-                                        <Bot className="w-8 h-8 text-previa-accent" />
+                            /* Welcome screen — responsive padding and grid */
+                            <div className="max-w-2xl mx-auto px-4 py-8 sm:px-6 sm:py-12">
+                                <div className="text-center mb-8 sm:mb-10">
+                                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-previa-accent/15 flex items-center justify-center mx-auto mb-4 border border-previa-accent/20">
+                                        <Bot className="w-7 h-7 sm:w-8 sm:h-8 text-previa-accent" />
                                     </div>
-                                    <h2 className="text-2xl font-bold text-previa-ink mb-2">
+                                    <h2 className="text-xl sm:text-2xl font-bold text-previa-ink mb-2">
                                         Agente Fiscal Previa App
                                     </h2>
-                                    <p className="text-previa-muted text-sm leading-relaxed max-w-md mx-auto">
+                                    <p className="text-previa-muted text-sm leading-relaxed max-w-md mx-auto px-1">
                                         Soy tu asistente especializado en cumplimiento fiscal mexicano. Puedo ayudarte a revisar proveedores ante el SAT, interpretar alertas y gestionar tus watchlists.
                                     </p>
                                 </div>
 
-                                {/* Quick actions */}
-                                <div className="grid grid-cols-2 gap-3 mb-6">
+                                {/* Quick actions — 1 col mobile, 2 cols sm+ */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
                                     <button
                                         onClick={() => openUploadModal(chatContext)}
                                         className="flex items-center space-x-3 p-4 bg-previa-surface border border-previa-border rounded-xl hover:border-previa-accent/40 hover:bg-previa-surface-hover transition-all text-left group"
@@ -178,10 +178,10 @@ export default function ChatPage() {
                                 </div>
 
                                 {/* Suggested prompts */}
-                                <p className="text-xs text-previa-muted uppercase tracking-wider font-semibold mb-3 px-1">
+                                <p className="text-xs text-previa-muted uppercase tracking-wider font-semibold mb-3 px-1 mt-6 sm:mt-8">
                                     Preguntas frecuentes
                                 </p>
-                                <div className="space-y-2">
+                                <div className="space-y-2 sm:space-y-2.5">
                                     {SUGGESTED_PROMPTS.map((prompt, i) => (
                                         <button
                                             key={i}
@@ -194,8 +194,8 @@ export default function ChatPage() {
                                 </div>
                             </div>
                         ) : (
-                            /* Conversation */
-                            <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
+                            /* Conversation — responsive padding */
+                            <div className="max-w-3xl mx-auto px-4 py-4 sm:px-6 sm:py-6 space-y-4">
                                 {messages.map((msg) => (
                                     <div
                                         key={msg.id}
@@ -207,7 +207,7 @@ export default function ChatPage() {
                                             </div>
                                         )}
                                         <div
-                                            className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
+                                            className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
                                                 ? 'bg-previa-accent text-white rounded-tr-sm'
                                                 : 'bg-previa-surface border border-previa-border text-previa-ink rounded-tl-sm'
                                                 }`}
@@ -253,8 +253,8 @@ export default function ChatPage() {
                         )}
                     </div>
 
-                    {/* Input bar */}
-                    <div className="bg-previa-surface border-t border-previa-border p-4 flex-shrink-0">
+                    {/* Input bar — responsive padding */}
+                    <div className="bg-previa-surface border-t border-previa-border px-4 py-3 sm:p-4 flex-shrink-0">
                         <div className="max-w-3xl mx-auto">
                             <form onSubmit={handleSubmit} className="relative">
                                 <input
