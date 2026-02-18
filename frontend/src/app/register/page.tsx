@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Eye, EyeOff } from 'lucide-react'
 import { GeometricBackground } from '@/components/GeometricBackground'
 
 export default function RegisterPage() {
@@ -13,6 +14,8 @@ export default function RegisterPage() {
         password: '',
         confirmPassword: ''
     })
+    const [showPassword, setShowPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
 
@@ -85,12 +88,14 @@ export default function RegisterPage() {
         })
     }
 
-    const fields = [
-        { id: 'email', label: 'Correo Electrónico', type: 'email', placeholder: 'usuario@empresa.com' },
-        { id: 'organization', label: 'Nombre de la Organización', type: 'text', placeholder: 'Mi Empresa S.A. de C.V.' },
-        { id: 'password', label: 'Contraseña', type: 'password', placeholder: 'Mínimo 6 caracteres' },
-        { id: 'confirmPassword', label: 'Confirmar Contraseña', type: 'password', placeholder: 'Confirma tu contraseña' },
-    ]
+    const inputClass = "w-full px-4 py-3 bg-previa-background border border-previa-border rounded-lg text-previa-ink placeholder-previa-muted/50 focus:outline-none focus:ring-2 focus:ring-previa-accent/50 focus:border-previa-accent transition-all"
+    const labelClass = "block text-xs font-semibold text-previa-muted uppercase tracking-wider mb-2"
+    const eyeBtnClass = "absolute right-3 top-1/2 -translate-y-1/2 p-1 text-previa-muted hover:text-previa-ink focus:outline-none focus:ring-2 focus:ring-previa-accent/50 rounded"
+    const EyeToggle = ({ visible, onToggle }: { visible: boolean; onToggle: () => void }) => (
+        <button type="button" onClick={onToggle} className={eyeBtnClass} aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} tabIndex={-1}>
+            {visible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        </button>
+    )
 
     return (
         <div className="min-h-screen bg-previa-background relative overflow-hidden">
@@ -111,23 +116,28 @@ export default function RegisterPage() {
                     {/* Registration Form */}
                     <div className="bg-previa-surface/80 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-previa-border p-8">
                         <form onSubmit={handleSubmit} className="space-y-5">
-                            {fields.map((field) => (
-                                <div key={field.id}>
-                                    <label htmlFor={field.id} className="block text-xs font-semibold text-previa-muted uppercase tracking-wider mb-2">
-                                        {field.label}
-                                    </label>
-                                    <input
-                                        type={field.type}
-                                        id={field.id}
-                                        name={field.id}
-                                        value={formData[field.id as keyof typeof formData]}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-3 bg-previa-background border border-previa-border rounded-lg text-previa-ink placeholder-previa-muted/50 focus:outline-none focus:ring-2 focus:ring-previa-accent/50 focus:border-previa-accent transition-all"
-                                        placeholder={field.placeholder}
-                                        required
-                                    />
+                            <div>
+                                <label htmlFor="email" className={labelClass}>Correo Electrónico</label>
+                                <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="usuario@empresa.com" required />
+                            </div>
+                            <div>
+                                <label htmlFor="organization" className={labelClass}>Nombre de la Organización</label>
+                                <input type="text" id="organization" name="organization" value={formData.organization} onChange={handleChange} className={inputClass} placeholder="Mi Empresa S.A. de C.V." required />
+                            </div>
+                            <div>
+                                <label htmlFor="password" className={labelClass}>Contraseña</label>
+                                <div className="relative">
+                                    <input type={showPassword ? 'text' : 'password'} id="password" name="password" value={formData.password} onChange={handleChange} className={inputClass + ' pr-11'} placeholder="Mínimo 6 caracteres" required />
+                                    <EyeToggle visible={showPassword} onToggle={() => setShowPassword((v) => !v)} />
                                 </div>
-                            ))}
+                            </div>
+                            <div>
+                                <label htmlFor="confirmPassword" className={labelClass}>Confirmar Contraseña</label>
+                                <div className="relative">
+                                    <input type={showConfirmPassword ? 'text' : 'password'} id="confirmPassword" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className={inputClass + ' pr-11'} placeholder="Confirma tu contraseña" required />
+                                    <EyeToggle visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((v) => !v)} />
+                                </div>
+                            </div>
 
                             {error && (
                                 <div className="bg-previa-danger/10 border border-previa-danger/30 text-previa-danger px-4 py-3 rounded-lg text-sm">

@@ -75,6 +75,20 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("Demo user already exists: %s", settings.demo_user_email)
 
+        # Ensure documented demo account exists (user@example.com / 1234) so login always works
+        default_demo_email = "user@example.com"
+        if default_demo_email != settings.demo_user_email:
+            r2 = await db.execute(select(User).where(User.email == default_demo_email))
+            if r2.scalar_one_or_none() is None:
+                extra_demo = User(
+                    email=default_demo_email,
+                    hashed_password=hash_password(settings.demo_user_password),
+                    role=settings.demo_user_role,
+                )
+                db.add(extra_demo)
+                await db.commit()
+                logger.info("Demo user created: %s (documented credentials)", default_demo_email)
+
     # Scheduler (background SAT data refresh)
     from app.scheduler import start_scheduler, shutdown_scheduler
     from app.agent.tools.constitution import ConstitutionIngester
