@@ -115,7 +115,7 @@ class SATDatosAbiertosFetcher:
     and parse them to extract RFC + classification data."""
 
     TIMEOUT = 60.0
-    MAX_FILE_SIZE = 150 * 1024 * 1024  # 150 MB cap per file
+    MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB cap per file (prevents memory saturation on startup)
 
     @classmethod
     def _url(cls, path: str) -> str:
@@ -255,7 +255,7 @@ class SATDatosAbiertosFetcher:
     # ── Step 3: orchestrate ──────────────────────────────────────────────
 
     @classmethod
-    async def run(cls, max_files: int = 30) -> List[Dict[str, Any]]:
+    async def run(cls, max_files: int = 10) -> List[Dict[str, Any]]:
         """
         Fetch each SAT Datos Abiertos landing page, discover download links,
         download Excel/CSV files, parse them, and return notice dicts.

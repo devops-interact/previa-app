@@ -12,8 +12,8 @@ scheduler = AsyncIOScheduler()
 
 
 async def _ingest_then_sweep():
-    """Run data ingestion, then immediately sweep watchlist companies."""
-    await run_ingestion()
+    """Run full data ingestion (up to 30 files) then sweep watchlist companies."""
+    await run_ingestion(sat_max_files=30)
     await sweep_watchlist_companies()
 
 

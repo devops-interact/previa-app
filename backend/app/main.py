@@ -20,7 +20,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.config.settings import settings
-from app.data.db.session import init_db
+from app.data.db.session import init_db, apply_migrations
 from app.api.routes import health, scan, rfc
 from app.api.routes import auth as auth_router
 from app.api.routes import organizations as org_router
@@ -49,9 +49,10 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Previa App backend...")
     logger.info("Database: %s", settings.sqlalchemy_database_url)
 
-    # Initialize database tables
+    # Initialize database tables and apply idempotent column migrations
     await init_db()
-    logger.info("Database initialized")
+    await apply_migrations()
+    logger.info("Database initialized and migrations applied")
 
     # Seed demo user (idempotent)
     from app.data.db.session import AsyncSessionLocal
@@ -116,16 +117,37 @@ async def lifespan(app: FastAPI):
         import asyncio
         asyncio.create_task(ConstitutionIngester.process())
 
-    # Initial DOF + SAT Datos Abiertos ingestion + watchlist sweep (background; scheduler repeats every 6h)
+    # Deferred ingestion: wait 60s so the app serves requests first, then skip
+    # if data was already ingested within the last 6 hours (avoids re-downloading
+    # large SAT Excel files on every Railway redeploy).
     import asyncio
+    from datetime import datetime as _dt2
     from app.data.sources.ingestion_job import run_ingestion
     from app.data.sources.sweep_job import sweep_watchlist_companies
+    from app.data.db.models import SATDataset as _SATDataset2
 
-    async def _initial_ingest_and_sweep():
-        await run_ingestion()
-        await sweep_watchlist_companies()
+    async def _delayed_ingest_and_sweep():
+        await asyncio.sleep(60)  # let the app be fully ready before heavy work
+        try:
+            async with AsyncSessionLocal() as _db:
+                _r = await _db.execute(
+                    select(_SATDataset2).where(_SATDataset2.dataset_name == "lista_69b")
+                )
+                _row = _r.scalar_one_or_none()
+                if _row and _row.last_updated:
+                    age_hours = (_dt2.utcnow() - _row.last_updated).total_seconds() / 3600
+                    if age_hours < 6:
+                        logger.info(
+                            "Skipping startup ingestion — data is %.1fh old (< 6h threshold)", age_hours
+                        )
+                        return
+            logger.info("Starting deferred ingestion + sweep...")
+            await run_ingestion(sat_max_files=10)  # capped at startup to avoid memory saturation
+            await sweep_watchlist_companies()
+        except Exception as _e:
+            logger.exception("Deferred ingestion/sweep failed: %s", _e)
 
-    asyncio.create_task(_initial_ingest_and_sweep())
+    asyncio.create_task(_delayed_ingest_and_sweep())
 
     yield
 

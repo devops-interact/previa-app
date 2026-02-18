@@ -21,12 +21,19 @@ from app.data.sources.sat_datos_abiertos_fetcher import SATDatosAbiertosFetcher
 logger = logging.getLogger(__name__)
 
 
-async def run_ingestion():
+async def run_ingestion(sat_max_files: int = 10):
     """
     Fetch DOF and SAT Datos Abiertos, replace stale data in public_notices,
     and update SATDataset freshness.  Called at startup and by the scheduler.
+
+    Args:
+        sat_max_files: Maximum number of SAT Excel/CSV files to download.
+                       Default 10 for startup; scheduler passes 30 for full coverage.
     """
-    logger.info("Starting public data ingestion (DOF + SAT Datos Abiertos)...")
+    logger.info(
+        "Starting public data ingestion (DOF + SAT Datos Abiertos, sat_max_files=%d)...",
+        sat_max_files,
+    )
     async with AsyncSessionLocal() as db:
         try:
             now = datetime.utcnow()
@@ -38,7 +45,7 @@ async def run_ingestion():
             await _update_sat_dataset(db, "lista_69b")
 
             # ── 2) SAT Datos Abiertos (Excel/CSV files) ──────────────────────
-            sat_notices = await SATDatosAbiertosFetcher.run(max_files=30)
+            sat_notices = await SATDatosAbiertosFetcher.run(max_files=sat_max_files)
             logger.info("SAT Datos Abiertos: %d notices fetched", len(sat_notices))
             await _replace_source(db, "sat_datos_abiertos", sat_notices, now)
             for ds_name in ("art69_creditos_firmes", "art69_no_localizados",
