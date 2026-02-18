@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import {
     Search, ChevronDown, ChevronRight, ChevronUp, LayoutList, LayoutGrid,
     Plus, Pencil, Check, X, Loader2, Building2, RefreshCw, ShieldAlert, ShieldCheck,
-    AlertTriangle, Info, ExternalLink, Calendar, Tag, FileText, Clock,
+    AlertTriangle, Info, ExternalLink, Calendar, Tag, FileText, Clock, Eye,
 } from 'lucide-react'
 import { Sidebar } from '@/components/Sidebar'
 import { AuthGuard } from '@/components/AuthGuard'
@@ -463,13 +463,14 @@ function CRMPageContent() {
         { key: 'watchlist', label: 'Watchlist', width: 'w-28' },
         { key: 'tag', label: 'Tag', width: 'w-28' },
         { key: 'screened', label: 'Escaneo', sortable: 'last_screened', width: 'w-24' },
+        { key: 'detail', label: '', width: 'w-10' },
     ]
 
     // ── Row renderer ─────────────────────────────────────────────────────────
     const renderRow = (row: EmpresaRow) => (
         <tr
             key={row.id}
-            className="border-b border-previa-border hover:bg-previa-surface-hover/40 transition-colors group cursor-pointer"
+            className="border-b border-previa-border hover:bg-previa-surface-hover/60 transition-colors group cursor-pointer select-none"
             onClick={() => setSelectedEmpresa(row)}
         >
             <td className="px-3 py-2.5 font-mono text-xs text-previa-accent whitespace-nowrap">{row.rfc}</td>
@@ -508,14 +509,16 @@ function CRMPageContent() {
                     {row.watchlist_name}
                 </span>
             </td>
-            <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+            <td className="px-3 py-2.5">
                 {editingId === row.id ? (
-                    <TagEditor
-                        current={row.group_tag ?? ''}
-                        knownTags={tags}
-                        onSave={(t) => saveTag(row, t)}
-                        onCancel={() => setEditingId(null)}
-                    />
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <TagEditor
+                            current={row.group_tag ?? ''}
+                            knownTags={tags}
+                            onSave={(t) => saveTag(row, t)}
+                            onCancel={() => setEditingId(null)}
+                        />
+                    </div>
                 ) : savingId === row.id ? (
                     <Loader2 className="w-4 h-4 animate-spin text-previa-muted" />
                 ) : (
@@ -539,6 +542,16 @@ function CRMPageContent() {
                     ? new Date(row.last_screened_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
                     : <span className="text-previa-muted/40">Sin escaneo</span>
                 }
+            </td>
+            {/* Explicit open-detail affordance */}
+            <td className="px-2 py-2.5 text-center">
+                <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedEmpresa(row) }}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-previa-muted hover:text-previa-accent hover:bg-previa-accent/10 transition-all"
+                    aria-label="Ver detalle"
+                >
+                    <Eye className="w-3.5 h-3.5" />
+                </button>
             </td>
         </tr>
     )
