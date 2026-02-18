@@ -1,4 +1,4 @@
-# PREV.IA — Article Coverage Documentation
+# Previa App — Article Coverage Documentation
 
 > **This content has been merged into the main PRD.**
 >

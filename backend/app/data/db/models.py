@@ -1,6 +1,6 @@
 """
-PREV.IA — Database Models
-SQLAlchemy ORM models for entities, scans, results, and audit logs.
+Previa App — Database Models
+SQLAlchemy ORM models for entities, scans, results, audit logs, organizations, and watchlists.
 """
 
 from datetime import datetime
@@ -21,6 +21,55 @@ class User(Base):
     role = Column(String, default="analyst")  # analyst, admin, auditor
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    organizations = relationship("Organization", back_populates="user", cascade="all, delete-orphan")
+
+
+class Organization(Base):
+    """User-created organizations to group watchlists."""
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="organizations")
+    watchlists = relationship("Watchlist", back_populates="organization", cascade="all, delete-orphan")
+
+
+class Watchlist(Base):
+    """Watchlists within an organization — tracks a set of companies."""
+    __tablename__ = "watchlists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    organization = relationship("Organization", back_populates="watchlists")
+    companies = relationship("WatchlistCompany", back_populates="watchlist", cascade="all, delete-orphan")
+
+
+class WatchlistCompany(Base):
+    """A company (RFC) that belongs to a watchlist."""
+    __tablename__ = "watchlist_companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    watchlist_id = Column(Integer, ForeignKey("watchlists.id"), nullable=False)
+    rfc = Column(String, nullable=False, index=True)
+    razon_social = Column(String, nullable=False)
+    group_tag = Column(String, nullable=True)     # custom grouping criteria
+    extra_data = Column(JSON, nullable=True)       # flexible columns from CSV/XLS
+    added_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    watchlist = relationship("Watchlist", back_populates="companies")
 
 
 class ScanJob(Base):

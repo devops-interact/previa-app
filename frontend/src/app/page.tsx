@@ -47,7 +47,7 @@ export default function HomePage() {
                         {/* Branding */}
                         <div className="text-center mb-8">
                             <h1 className="text-4xl font-bold text-previa-accent mb-2 tracking-tight">
-                                PREV.IA
+                                Previa App
                             </h1>
                             <p className="text-previa-muted text-sm">
                                 Autonomous Fiscal Compliance Screening

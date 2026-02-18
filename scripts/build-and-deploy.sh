@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PREV.IA — Build and Deploy Automation
+# Previa App — Build and Deploy Automation
 # =============================================================================
 # 1. Push to GitHub
 # 2. Build local Docker image (backend)
@@ -72,7 +72,7 @@ output_runpod_env() {
   local runpod_env_file="$REPO_ROOT/runpod-env.txt"
   cat > "$runpod_env_file" << 'RUNPOD_HEADER'
 # =============================================================================
-# PREV.IA — RunPod Environment Variables
+# Previa App — RunPod Environment Variables
 # =============================================================================
 # Copy these key=value pairs into RunPod → Your Pod → Edit → Environment Variables.
 # Add each line as a separate variable (omit the export and quotes for RunPod UI).

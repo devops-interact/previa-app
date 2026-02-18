@@ -1,5 +1,5 @@
 """
-PREV.IA — Database Session Management
+Previa App — Database Session Management
 Async database session factory for SQLite.
 """
 

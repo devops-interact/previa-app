@@ -1,4 +1,4 @@
-# PREV.IA — Product & Technical Requirements Document
+# Previa App — Product & Technical Requirements Document
 
 **Version:** 1.0  
 **Date:** February 16, 2026  
@@ -31,14 +31,14 @@
 
 ## 1. Executive Summary
 
-**PREV.IA** is an autonomous fiscal compliance screening agent designed for tax accounting teams operating in the Mexican regulatory environment. The agent ingests structured lists of RFC (Registro Federal de Contribuyentes) identifiers — provided via CSV or XLS files — and performs automated deep searches across official Mexican government data sources to detect regulatory flags, sanctions, and certificate irregularities affecting any vendor, client, or enterprise under the user's fiscal purview.
+**Previa App** is an autonomous fiscal compliance screening agent designed for tax accounting teams operating in the Mexican regulatory environment. The agent ingests structured lists of RFC (Registro Federal de Contribuyentes) identifiers — provided via CSV or XLS files — and performs automated deep searches across official Mexican government data sources to detect regulatory flags, sanctions, and certificate irregularities affecting any vendor, client, or enterprise under the user's fiscal purview.
 
 The core value proposition is **proactive risk mitigation**: transforming a manual, error-prone, and time-intensive compliance review process into an automated, auditable, and near-real-time alert pipeline.
 
 **MVP Outcome:** A working agent that accepts a file of RFC entries, cross-references them against SAT and DOF public data, and produces a structured compliance risk report with actionable alerts.
 
 **Architecture Principle — Cloud-Native Split:**  
-PREV.IA follows a decoupled frontend/backend architecture designed for cloud deployment from day one:
+Previa App follows a decoupled frontend/backend architecture designed for cloud deployment from day one:
 
 - **Backend (Agent API):** Python service containerized with Docker, pushed to Docker Hub, and deployed on a cloud compute provider (Northflank, RunPod, AWS Lambda, or similar). Exposes a REST API that handles file ingestion, screening orchestration, risk scoring, and report generation.
 - **Frontend (Dashboard):** Next.js application deployed on Vercel. Provides the user-facing upload interface, real-time screening progress, interactive results explorer, and report downloads.
@@ -76,7 +76,7 @@ Under Article 69-B of the CFF, if a taxpayer uses CFDIs from a supplier classifi
 
 ### Agent Identity
 
-- **Name:** PREV.IA (pronounced "previa" — evoking "prevención" / prevention)
+- **Name:** Previa App (pronounced "previa" — evoking "prevención" / prevention)
 - **Persona:** She/her — a vigilant fiscal compliance analyst
 - **Tone:** Professional, precise, alert-oriented — never alarmist, always evidence-based
 
@@ -100,7 +100,7 @@ The application is organized into **four key sections** plus a global **Navbar**
 |---|---|---|
 | **1** | **New Dataset / RFC search & upload** | Add RFCs to monitor: single RFC search, bulk upload (CSV/XLSX), or paste list. Validate format and attach optional metadata (relationship, internal ID, tags). New entries feed into watchlists and the Tablero. |
 | **2** | **Tablero (Dashboard)** | Central screening view for all RFC watchlists. Shows all monitored RFCs with **all available indicators**: Art. 69, 69 Bis, 69-B, 49 Bis flags; presunto/definitivo/desvirtuado/sentencia favorable; CSD status; risk level. User can **group**, **tag**, **name**, and **manage watchlists** (create, rename, archive, export). Filter and sort by risk, list type, date. |
-| **3** | **Chat** | Tax and accounting consultation within the Mexican tax/legal ecosystem. User can ask questions in natural language, **upload files** (PDF, XLSX, CFDI), and share **links or URLs** (e.g. DOF, SAT). PREV.IA (and Prevenco, where applicable) assists with interpretation of CFF articles, DOF notices, SAT lists, and compliance advice. |
+| **3** | **Chat** | Tax and accounting consultation within the Mexican tax/legal ecosystem. User can ask questions in natural language, **upload files** (PDF, XLSX, CFDI), and share **links or URLs** (e.g. DOF, SAT). Previa App (and Prevenco, where applicable) assists with interpretation of CFF articles, DOF notices, SAT lists, and compliance advice. |
 | **4** | **Navbar** | Persistent top navigation: links to **New Dataset / RFC upload**, **Tablero**, **Chat**; user menu (profile, settings, logout); optional alert bell for critical findings; package/consulting hours indicator (e.g. 3 hours/month). |
 
 **Wireframe-style flow:** Login → Navbar (always visible) → choose New Dataset to add RFCs → Tablero to see all watchlists and indicators → Chat for consultation and file/link uploads.
@@ -110,17 +110,17 @@ The application is organized into **four key sections** plus a global **Navbar**
 | Use case | Description |
 |---|---|
 | **Automatic alerts** | Send automatic alerts to clients when taxpayers they monitor are listed under **Articles 69, 69 Bis, 69-B, and 49 Bis** of the CFF and published in the DOF. Alerts cover: taxpayers **presumed** in violation, taxpayers **definitively** found in violation, and taxpayers who **successfully refuted** allegations through legal recourse. |
-| **Immediate assistance (Prevenco)** | PREV.IA is the portal to receive **immediate assistance from Prevenco** when any of the user’s suppliers or clients appear on the published lists. |
-| **Consulting hours** | PREV.IA includes **consulting hours per month** (e.g. **3 hours**); exact quota may vary by package. Consumed in the Chat section for tax/legal consultation. |
+| **Immediate assistance (Prevenco)** | Previa App is the portal to receive **immediate assistance from Prevenco** when any of the user’s suppliers or clients appear on the published lists. |
+| **Consulting hours** | Previa App includes **consulting hours per month** (e.g. **3 hours**); exact quota may vary by package. Consumed in the Chat section for tax/legal consultation. |
 | **CSD (Digital Seal Certificate) status** | Allow the user to obtain information on whether a taxpayer (supplier or client) has a **blocked or canceled CSD**, and the **reason**. This flow is **manual** (user requests; result delivered via Chat or Tablero). |
 | **Reputational / press risk** | Help the user find out if a supplier or client is **linked to a scandalous or high-risk newspaper article** that could pose reputational or business risk. |
 | **DOF notice delivery** | Request the **latest official notice** published in the DOF for any of the scenarios (69, 69 Bis, 69-B, 49 Bis). Users can **subscribe** to receive the latest published notice **even when none of their registered RFCs** appear on that list (e.g. for market or sector monitoring). |
 
-### 3.6 How to Use PREV.IA
+### 3.6 How to Use Previa App
 
 1. **Log in** — Access the portal with credentials (demo: `user@product.test` / `1234`).
 2. **Options bar (Navbar)** — From the top bar, the user can:
-   - **Add RFCs** (Mexican Taxpayer IDs) for PREV.IA to monitor.
+   - **Add RFCs** (Mexican Taxpayer IDs) for Previa App to monitor.
    - **Register** RFCs (single or bulk), **group** them into watchlists, and **name/tag** them.
    - **Request advice** — Open Chat for tax/accounting consultation (within monthly consulting hours).
    - **Request CSD consultation** — Ask for Digital Seal Certificate status and reason for block/cancellation for any taxpayer.
@@ -132,7 +132,7 @@ The application is organized into **four key sections** plus a global **Navbar**
 
 ### 3.7 Design — Color Palette
 
-PREV.IA uses a consistent palette across the dashboard, Tablero, and Chat. Use these hex values (with `#` prefix in code) for backgrounds, surfaces, accents, and text.
+Previa App uses a consistent palette across the dashboard, Tablero, and Chat. Use these hex values (with `#` prefix in code) for backgrounds, surfaces, accents, and text.
 
 | Token | Hex | Usage |
 |---|---|---|
@@ -197,7 +197,7 @@ Covers four categories of non-compliant taxpayers published by SAT:
 
 ### 4.3 Article 49 Bis — CFF (Relevant DOF Lists)
 
-Article 49 Bis of the CFF is part of the set of provisions whose breach leads to publication of taxpayer lists in the DOF. PREV.IA monitors and alerts on lists derived from **Articles 69, 69 Bis, 69-B, and 49 Bis**, as published in the Official Gazette of the Federation (presumed, definitive, and refuted cases).
+Article 49 Bis of the CFF is part of the set of provisions whose breach leads to publication of taxpayer lists in the DOF. Previa App monitors and alerts on lists derived from **Articles 69, 69 Bis, 69-B, and 49 Bis**, as published in the Official Gazette of the Federation (presumed, definitive, and refuted cases).
 
 ### 4.4 Digital Certificate Compliance
 
@@ -211,7 +211,7 @@ A revoked, expired, or absent CSD is a red flag — SAT may revoke CSDs as a san
 
 ### 4.5 Article Coverage & Risk Scoring
 
-PREV.IA screens RFCs against **four critical Mexican tax compliance articles**:
+Previa App screens RFCs against **four critical Mexican tax compliance articles**:
 
 1. **Article 69-B** — EFOS/EDOS (Empresas que Facturan Operaciones Simuladas)
 2. **Article 69** — Non-compliance lists (4 categories)
@@ -274,7 +274,7 @@ Additional compliance requirements and sanctions related to fiscal obligations a
 
 #### Article 49 BIS — DOF Publications
 
-Provisions whose breach leads to publication of taxpayer lists in the Diario Oficial de la Federación (DOF). PREV.IA monitors and alerts on lists derived from Articles 69, 69 BIS, 69-B, and 49 BIS.
+Provisions whose breach leads to publication of taxpayer lists in the Diario Oficial de la Federación (DOF). Previa App monitors and alerts on lists derived from Articles 69, 69 BIS, 69-B, and 49 BIS.
 
 **Implementation:** `backend/app/agent/tools/sat_49_bis_tool.py`
 
@@ -284,7 +284,7 @@ Provisions whose breach leads to publication of taxpayer lists in the Diario Ofi
 
 #### Risk Aggregation
 
-PREV.IA uses **maximum score aggregation** — the highest risk finding determines the overall risk level:
+Previa App uses **maximum score aggregation** — the highest risk finding determines the overall risk level:
 
 ```python
 # Example: RFC with multiple findings
@@ -301,7 +301,7 @@ findings = {
 
 #### Screening Workflow
 
-For each RFC, PREV.IA performs the following checks in sequence:
+For each RFC, Previa App performs the following checks in sequence:
 
 ```
 1. Validate RFC format
@@ -616,7 +616,7 @@ previa-app/
 │   │   │   │   ├── cert_checker.py   # SAT certificate portal automation
 │   │   │   │   └── third_party_api.py# Reachcore / FacturoPorti wrappers
 │   │   │   └── prompts/
-│   │   │       ├── system_prompt.py  # PREV.IA personality and instructions
+│   │   │       ├── system_prompt.py  # Previa App personality and instructions
 │   │   │       └── analysis_prompt.py# DOF text analysis templates
 │   │   ├── data/
 │   │   │   ├── ingest/
@@ -924,7 +924,7 @@ CRON (configurable schedule)
 
 ```
 ═══════════════════════════════════════════════
-  ⚠ PREV.IA — ALERTA FISCAL [CRITICAL]
+  ⚠ Previa App — ALERTA FISCAL [CRITICAL]
 ═══════════════════════════════════════════════
 
 Entidad:      COMERCIALIZADORA ALCAER, S.A. DE C.V.
@@ -1072,7 +1072,7 @@ When the web dashboard is running without `--demo`, users see a login form. Ente
 | **False negative rate** | 0% for CRITICAL findings (69-B Definitivo) | Must never miss a definitivo listing |
 | **False positive rate** | <2% | Flagged entities not actually listed in official sources |
 | **Audit trail completeness** | 100% of queries logged | Every RFC checked must have a corresponding audit record |
-| **User time savings** | >80% reduction vs manual process | Comparative time study: manual vs PREV.IA |
+| **User time savings** | >80% reduction vs manual process | Comparative time study: manual vs Previa App |
 
 ### Business Metrics (Post-MVP)
 
@@ -1100,7 +1100,7 @@ When the web dashboard is running without `--demo`, users see a login form. Ente
 
 ## 15. Demo Setup & Running Guide
 
-This section covers three ways to run PREV.IA — from local development through production cloud deployment.
+This section covers three ways to run Previa App — from local development through production cloud deployment.
 
 ### 15.1 Prerequisites
 
@@ -1399,7 +1399,7 @@ vercel deploy --prod
 
 ```bash
 # ============================================================
-# PREV.IA Backend — Environment Configuration
+# Previa App Backend — Environment Configuration
 # ============================================================
 
 # --- LLM Provider (Required) --------------------------------
@@ -1445,7 +1445,7 @@ LOG_LEVEL=INFO
 
 ```bash
 # ============================================================
-# PREV.IA Frontend — Environment Configuration (.env.local)
+# Previa App Frontend — Environment Configuration (.env.local)
 # ============================================================
 
 # Backend API URL — must match your cloud deployment
@@ -1637,7 +1637,7 @@ curl -X POST https://your-api-url/api/rfc/CAL080328S18
 ---
 
 > **Document Control:**  
-> This document serves as the executive prompt and technical specification for PREV.IA MVP development. It should be reviewed and approved by the fiscal compliance team lead and engineering lead before development begins.  
+> This document serves as the executive prompt and technical specification for Previa App MVP development. It should be reviewed and approved by the fiscal compliance team lead and engineering lead before development begins.  
 >  
 > **Next Steps:**  
 > 1. Stakeholder review and sign-off on MVP scope (Phase 1)  

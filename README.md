@@ -1,9 +1,9 @@
-# PREV.IA — Fiscal Compliance Screening Agent
+# Previa App — Fiscal Compliance Screening Agent
 
 **Version:** 1.0.0 (MVP)  
 **Status:** Development
 
-PREV.IA is an autonomous fiscal compliance screening agent designed for tax accounting teams operating in the Mexican regulatory environment. The agent ingests RFC (Registro Federal de Contribuyentes) identifiers and performs automated screening across official Mexican government data sources to detect regulatory flags, sanctions, and certificate irregularities.
+Previa App is an autonomous fiscal compliance screening agent designed for tax accounting teams operating in the Mexican regulatory environment. The agent ingests RFC (Registro Federal de Contribuyentes) identifiers and performs automated screening across official Mexican government data sources to detect regulatory flags, sanctions, and certificate irregularities.
 
 ## Architecture
 

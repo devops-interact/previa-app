@@ -1,5 +1,5 @@
 """
-PREV.IA — Article 69 Screening Tool
+Previa App — Article 69 Screening Tool
 Screen RFCs against SAT's Article 69 non-compliance lists.
 
 Covers four categories:

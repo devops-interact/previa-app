@@ -1,5 +1,5 @@
 """
-PREV.IA — Application Settings
+Previa App — Application Settings
 Loads configuration from environment variables using Pydantic Settings.
 """
 
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     """Application configuration loaded from environment variables."""
     
     # Application
-    app_name: str = "PREV.IA"
+    app_name: str = "Previa App"
     app_version: str = "1.0.0"
     log_level: str = "INFO"
     

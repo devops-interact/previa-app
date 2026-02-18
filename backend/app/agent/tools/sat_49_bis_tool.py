@@ -1,9 +1,9 @@
 """
-PREV.IA — Article 49 BIS Screening Tool
+Previa App — Article 49 BIS Screening Tool
 Screen RFCs against SAT's Article 49 BIS lists.
 
 Article 49 BIS of the CFF relates to provisions whose breach leads to 
-publication of taxpayer lists in the DOF. PREV.IA monitors and alerts 
+publication of taxpayer lists in the DOF. Previa App monitors and alerts 
 on lists derived from Articles 69, 69 BIS, 69-B, and 49 BIS.
 """
 

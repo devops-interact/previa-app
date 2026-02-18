@@ -1,5 +1,5 @@
 """
-PREV.IA — Authentication Routes
+Previa App — Authentication Routes
 POST /api/auth/login  — Returns a JWT access token.
 """
 

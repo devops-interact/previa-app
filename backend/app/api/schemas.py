@@ -1,5 +1,5 @@
 """
-PREV.IA — Pydantic Schemas
+Previa App — Pydantic Schemas
 Request/response models for API endpoints.
 """
 

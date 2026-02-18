@@ -28,7 +28,7 @@ export function Navbar() {
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-16">
                     <Link href="/tablero" className="text-xl font-bold text-previa-accent tracking-tight">
-                        PREV.IA
+                        Previa App
                     </Link>
 
                     <div className="flex items-center space-x-2">

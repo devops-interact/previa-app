@@ -1,5 +1,5 @@
 """
-PREV.IA — Article 69 BIS Screening Tool
+Previa App — Article 69 BIS Screening Tool
 Screen RFCs against SAT's Article 69 BIS lists.
 
 Article 69 BIS covers additional compliance requirements and sanctions

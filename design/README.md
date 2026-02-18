@@ -1,4 +1,4 @@
-# PREV.IA — Design tokens
+# Previa App — Design tokens
 
 ## Typography
 

@@ -1,5 +1,5 @@
 """
-PREV.IA — RFC Lookup Endpoint
+Previa App — RFC Lookup Endpoint
 Single RFC screening on-demand.
 Screens against Articles 69, 69 BIS, 69-B, and 49 BIS.
 

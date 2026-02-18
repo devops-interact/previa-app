@@ -1,5 +1,5 @@
 """
-PREV.IA — File Parser
+Previa App — File Parser
 Parse CSV and XLSX files containing RFC entities.
 """
 

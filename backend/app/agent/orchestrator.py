@@ -1,5 +1,5 @@
 """
-PREV.IA — Agent Orchestrator
+Previa App — Agent Orchestrator
 Coordinates screening workflow for scan jobs.
 Screens RFCs against Articles 69, 69 BIS, 69-B, and 49 BIS.
 """

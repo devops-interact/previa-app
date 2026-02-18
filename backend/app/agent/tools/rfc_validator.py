@@ -1,5 +1,5 @@
 """
-PREV.IA — RFC Validator
+Previa App — RFC Validator
 Validates RFC format according to Mexican tax authority rules.
 """
 

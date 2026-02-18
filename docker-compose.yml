@@ -1,5 +1,5 @@
 # =============================================================================
-# PREV.IA — Docker Compose (Full Stack Local Development)
+# Previa App — Docker Compose (Full Stack Local Development)
 # =============================================================================
 
 version: '3.8'

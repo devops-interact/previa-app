@@ -101,7 +101,7 @@ export default function RegisterPage() {
                     {/* Branding */}
                     <div className="text-center mb-8">
                         <h1 className="text-4xl font-bold text-previa-accent mb-2 tracking-tight">
-                            PREV.IA
+                            Previa App
                         </h1>
                         <p className="text-previa-muted text-sm">
                             Crear nueva cuenta
@@ -155,7 +155,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="mt-8 text-center text-xs text-previa-muted">
-                        <p>PREV.IA — Autonomous Fiscal Compliance Screening</p>
+                        <p>Previa App — Autonomous Fiscal Compliance Screening</p>
                     </div>
                 </div>
             </div>

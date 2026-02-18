@@ -1,5 +1,5 @@
 /**
- * PREV.IA — TypeScript Type Definitions
+ * Previa App — TypeScript Type Definitions
  * Shared interfaces matching backend Pydantic models
  */
 
@@ -11,6 +11,8 @@ export type ScanStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
 export type AlertSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO'
 
+// ── Alert ─────────────────────────────────────────────────────────────────────
+
 export interface Alert {
     id: string
     severity: AlertSeverity
@@ -19,7 +21,13 @@ export interface Alert {
     entityName: string
     status: string
     timestamp?: string
+    description?: string          // detailed context
+    publicReportUrl?: string      // link to DOF / SAT public report
+    oficio?: string               // official notice number
+    authority?: string
 }
+
+// ── Scan ──────────────────────────────────────────────────────────────────────
 
 export interface EntityInput {
     rfc: string
@@ -81,6 +89,8 @@ export interface RFCLookupResponse {
     screened_at: string
 }
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
 export interface RegistrationData {
     email: string
     organization: string
@@ -91,4 +101,51 @@ export interface RegistrationResponse {
     success: boolean
     message: string
     user_id?: string
+}
+
+// ── Organizations & Watchlists ────────────────────────────────────────────────
+
+export interface WatchlistCompany {
+    id: number
+    watchlist_id: number
+    rfc: string
+    razon_social: string
+    group_tag?: string
+    extra_data?: Record<string, unknown>
+    added_at: string
+}
+
+export interface Watchlist {
+    id: number
+    organization_id: number
+    name: string
+    description?: string
+    created_at: string
+    company_count: number
+}
+
+export interface Organization {
+    id: number
+    name: string
+    description?: string
+    created_at: string
+    watchlists: Watchlist[]
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+
+export type ChatRole = 'user' | 'assistant'
+
+export interface ChatMessage {
+    id: string
+    role: ChatRole
+    content: string
+    timestamp: string
+    suggested_action?: 'upload_csv' | 'create_watchlist' | null
+}
+
+export interface ChatContext {
+    organization?: string
+    watchlist?: string
+    watchlist_id?: number
 }

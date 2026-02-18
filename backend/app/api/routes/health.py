@@ -1,5 +1,5 @@
 """
-PREV.IA — Health Check Endpoint
+Previa App — Health Check Endpoint
 Provides system health status and data freshness information.
 """
 

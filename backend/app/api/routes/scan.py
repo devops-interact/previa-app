@@ -1,5 +1,5 @@
 """
-PREV.IA — Scan Endpoints
+Previa App — Scan Endpoints
 File upload, scan creation, and status tracking.
 
 Security:

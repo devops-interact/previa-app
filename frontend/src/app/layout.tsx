@@ -8,7 +8,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-    title: "PREV.IA — Fiscal Compliance Screening",
+    title: "Previa App — Fiscal Compliance Screening",
     description: "Autonomous fiscal compliance screening agent for Mexican tax regulations",
 }
 

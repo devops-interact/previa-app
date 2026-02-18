@@ -1,5 +1,5 @@
 """
-PREV.IA — FastAPI Application Entry Point
+Previa App — FastAPI Application Entry Point
 Main application with CORS, rate limiting, JWT auth, and database initialization.
 
 Security hardening applied:
@@ -23,6 +23,8 @@ from app.config.settings import settings
 from app.data.db.session import init_db
 from app.api.routes import health, scan, rfc
 from app.api.routes import auth as auth_router
+from app.api.routes import organizations as org_router
+from app.api.routes import chat as chat_router
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -44,7 +46,7 @@ async def lifespan(app: FastAPI):
     Application lifespan manager.
     Runs setup on startup and teardown on shutdown.
     """
-    logger.info("Starting PREV.IA backend...")
+    logger.info("Starting Previa App backend...")
     logger.info("Database: %s", settings.sqlalchemy_database_url)
 
     # Initialize database tables
@@ -90,7 +92,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    logger.info("Shutting down PREV.IA backend...")
+    logger.info("Shutting down Previa App backend...")
     await shutdown_scheduler()
 
 
@@ -114,7 +116,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
@@ -124,6 +126,8 @@ app.include_router(auth_router.router, prefix="/api", tags=["Auth"])
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(scan.router, prefix="/api", tags=["Scan"])
 app.include_router(rfc.router, prefix="/api", tags=["RFC"])
+app.include_router(org_router.router, prefix="/api", tags=["Organizations"])
+app.include_router(chat_router.router, prefix="/api", tags=["Chat"])
 
 # ── Root ──────────────────────────────────────────────────────────────────────
 

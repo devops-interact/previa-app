@@ -1,5 +1,5 @@
 """
-PREV.IA — Risk Scoring Rules
+Previa App — Risk Scoring Rules
 Defines the risk scoring matrix for compliance findings.
 """
 

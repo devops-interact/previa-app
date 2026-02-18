@@ -1,5 +1,5 @@
 """
-PREV.IA — API Dependencies
+Previa App — API Dependencies
 JWT authentication utilities and FastAPI dependency functions.
 """
 

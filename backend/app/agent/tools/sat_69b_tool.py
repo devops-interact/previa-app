@@ -1,5 +1,5 @@
 """
-PREV.IA — Article 69-B Screening Tool
+Previa App — Article 69-B Screening Tool
 Screen RFCs against SAT's Article 69-B lists (EFOS/EDOS).
 """
 

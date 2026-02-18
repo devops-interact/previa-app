@@ -1,5 +1,5 @@
 /**
- * PREV.IA — Color palette for Tailwind CSS
+ * Previa App — Color palette for Tailwind CSS
  * Use in tailwind.config.ts:  theme: { extend: { colors: require('./design/tailwind-previa-colors.js') } }
  * Or copy the previa object into theme.extend.colors.
  *
