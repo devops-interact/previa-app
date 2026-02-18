@@ -18,8 +18,8 @@ from sqlalchemy import select
 
 from app.api.deps import get_current_user
 from app.data.db.session import get_db
-from app.data.db.models import ScanJob, Entity, Organization, Watchlist, WatchlistCompany
-from app.api.schemas import ScanCreateResponse, ScanStatusResponse
+from app.data.db.models import ScanJob, Entity, Organization, Watchlist, WatchlistCompany, ScreeningResult
+from app.api.schemas import ScanCreateResponse, ScanStatusResponse, ScanResultsResponse, EntityResult
 from app.data.ingest.file_parser import parse_upload_file
 from app.agent.orchestrator import process_scan
 
@@ -253,3 +253,67 @@ async def download_report(
 
     # TODO: Generate and return XLSX report
     raise HTTPException(status_code=501, detail="Report generation not implemented yet")
+
+
+@router.get("/scan/{scan_id}/results", response_model=ScanResultsResponse)
+async def get_scan_results(
+    scan_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[dict, Depends(get_current_user)],
+):
+    """
+    Return per-entity screening results for a scan job.
+    Available while the scan is in progress (partial) and after completion.
+
+    Requires: Authorization: Bearer <token>
+    """
+    result = await db.execute(select(ScanJob).where(ScanJob.scan_id == scan_id))
+    scan_job = result.scalar_one_or_none()
+    if not scan_job:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    # Fetch all entities for this scan
+    ent_result = await db.execute(
+        select(Entity).where(Entity.scan_job_id == scan_job.id)
+    )
+    entities = ent_result.scalars().all()
+
+    # Build a map of entity_id → ScreeningResult
+    res_result = await db.execute(
+        select(ScreeningResult).where(ScreeningResult.scan_job_id == scan_job.id)
+    )
+    screening_map = {sr.entity_id: sr for sr in res_result.scalars().all()}
+
+    entity_results = []
+    for entity in entities:
+        sr = screening_map.get(entity.id)
+        entity_results.append(
+            EntityResult(
+                id=entity.id,
+                rfc=entity.rfc,
+                razon_social=entity.razon_social,
+                tipo_persona=entity.tipo_persona,
+                relacion=entity.relacion,
+                risk_score=sr.risk_score if sr else 0,
+                risk_level=sr.risk_level if sr else "CLEAR",
+                art_69b_found=sr.art_69b_found if sr else False,
+                art_69b_status=sr.art_69b_status if sr else None,
+                art_69b_oficio=sr.art_69b_oficio if sr else None,
+                art_69b_authority=sr.art_69b_authority if sr else None,
+                art_69b_motivo=sr.art_69b_motivo if sr else None,
+                art_69b_dof_url=sr.art_69b_dof_url if sr else None,
+                art_69_found=sr.art_69_found if sr else False,
+                art_69_categories=sr.art_69_categories if sr else [],
+                art_69_bis_found=False,
+                art_49_bis_found=False,
+                screened_at=sr.screened_at if sr else None,
+            )
+        )
+
+    return ScanResultsResponse(
+        scan_id=scan_job.scan_id,
+        status=scan_job.status,
+        total_entities=scan_job.total_entities,
+        processed_entities=scan_job.processed_entities,
+        results=entity_results,
+    )

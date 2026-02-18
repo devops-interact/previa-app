@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Search, Bell, Settings as SettingsIcon, Upload } from 'lucide-react'
+import { Search, Bell, Settings as SettingsIcon, Upload, FileSpreadsheet } from 'lucide-react'
 import { Sidebar } from '@/components/Sidebar'
 import { AlertCard } from '@/components/AlertCard'
 import { ComplianceTable } from '@/components/ComplianceTable'
@@ -10,79 +10,153 @@ import { AIAssistant } from '@/components/AIAssistant'
 import { AuthGuard } from '@/components/AuthGuard'
 import { NotificationModal } from '@/components/NotificationModal'
 import { useUploadModal } from '@/contexts/UploadModalContext'
-import type { Alert, ChatContext } from '@/types'
+import { apiClient } from '@/lib/api-client'
+import type { Alert, AlertSeverity, ChatContext, ScanEntityResult } from '@/types'
 
-const ALERTS: Alert[] = [
-    {
-        id: '1',
-        severity: 'CRITICAL',
-        article: 'Art.69-B',
-        rfc: 'LAS191217BD4',
-        entityName: 'LEGALIDAD Y AUDITORIA 727 S.C. DE...',
-        status: 'DEFINITIVO - Operaciones inexistentes confirmadas',
-        timestamp: '2024-01-15',
-        oficio: 'SAT-700-07-2024-0012',
-        authority: 'Administración Central de Fiscalización',
-        publicReportUrl: 'https://www.sat.gob.mx/consultas/76355/consulta-la-lista-de-contribuyentes-con-operaciones-presuntamente-inexistentes',
-    },
-    {
-        id: '2',
-        severity: 'HIGH',
-        article: 'Art.69-B',
-        rfc: 'BMS190313BU0',
-        entityName: 'BMS COMERCIALIZADORA S.A. DE C.V.',
-        status: 'PRESUNTO - Bajo investigación',
-        timestamp: '2024-01-10',
-        authority: 'SAT — Administración Regional',
-    },
-    {
-        id: '3',
-        severity: 'MEDIUM',
-        article: 'Art.69',
-        rfc: 'CAL080328S18',
-        entityName: 'COMERCIALIZADORA ALCAER S.A.',
-        status: 'Crédito fiscal firme pendiente',
-        timestamp: '2024-01-08',
-    },
-    {
-        id: '4',
-        severity: 'LOW',
-        article: 'Art.69-B',
-        rfc: 'XYZ123456AB7',
-        entityName: 'EMPRESA EJEMPLO S.A. DE C.V.',
-        status: 'DESVIRTUADO - Presunción refutada',
-        timestamp: '2024-01-05',
-    },
-]
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-const TABLE_DATA = [
-    { id: '1', empresa: 'LEGALIDAD Y AUDITORIA 727, S.C. DE...', rfc: 'LAS191217BD4', art69: 'Definitivo', art69B: 'Definitivo', art69BIS: 'N/A', art49BIS: 'N/A' },
-    { id: '2', empresa: 'BMS COMERCIALIZADORA S.A. DE C.V.', rfc: 'BMS190313BU0', art69: 'N/A', art69B: 'Presunto', art69BIS: 'N/A', art49BIS: 'N/A' },
-    { id: '3', empresa: 'COMERCIALIZADORA ALCAER S.A.', rfc: 'CAL080328S18', art69: 'Crédito firme', art69B: 'N/A', art69BIS: 'N/A', art49BIS: 'N/A' },
-    { id: '4', empresa: 'AGROEXPORT DE CAMPECHE S.P.R.', rfc: 'ACA0604119X3', art69: 'N/A', art69B: 'N/A', art69BIS: 'N/A', art49BIS: 'N/A' },
-    { id: '5', empresa: 'GRUPO FISCAL SOLUCIONES S.A.', rfc: 'GFS1109204G1', art69: 'N/A', art69B: 'N/A', art69BIS: 'N/A', art49BIS: 'N/A' },
-    { id: '6', empresa: 'BADESA CONSTRUCCIONES S.A.', rfc: 'BAD180409H32', art69: 'N/A', art69B: 'N/A', art69BIS: 'N/A', art49BIS: 'N/A' },
-]
+function riskToSeverity(level: string): AlertSeverity {
+    switch (level) {
+        case 'CRITICAL': return 'CRITICAL'
+        case 'HIGH': return 'HIGH'
+        case 'MEDIUM': return 'MEDIUM'
+        case 'LOW': return 'LOW'
+        default: return 'INFO'
+    }
+}
 
-/** Reads ?upload=1 from the URL and opens the upload modal. Must be inside Suspense. */
-function UploadParamHandler({ openUploadModal, chatContext }: { openUploadModal: (ctx?: ChatContext) => void; chatContext: ChatContext }) {
+function deriveArticle(r: ScanEntityResult): string {
+    if (r.art_69b_found) return 'Art.69-B'
+    if (r.art_69_found) return 'Art.69'
+    if (r.art_69_bis_found) return 'Art.69-BIS'
+    if (r.art_49_bis_found) return 'Art.49-BIS'
+    return 'Sin hallazgo'
+}
+
+function resultToAlert(r: ScanEntityResult): Alert {
+    return {
+        id: String(r.id),
+        severity: riskToSeverity(r.risk_level),
+        article: deriveArticle(r),
+        rfc: r.rfc,
+        entityName: r.razon_social,
+        status: r.art_69b_status
+            ? `${r.art_69b_status.toUpperCase()} — ${r.art_69b_motivo ?? ''}`
+            : r.art_69_found
+                ? `Art.69 — ${r.art_69_categories.map((c: Record<string, unknown>) => c.type).join(', ')}`
+                : 'Sin hallazgo',
+        timestamp: r.screened_at ?? undefined,
+        oficio: r.art_69b_oficio ?? undefined,
+        authority: r.art_69b_authority ?? undefined,
+        publicReportUrl: r.art_69b_dof_url ?? undefined,
+    }
+}
+
+function resultToTableRow(r: ScanEntityResult) {
+    const fmt69b = r.art_69b_found ? (r.art_69b_status ?? 'Encontrado') : 'N/A'
+    const fmt69 = r.art_69_found
+        ? (r.art_69_categories.map((c: Record<string, unknown>) => String(c.type)).join(', ') || 'Encontrado')
+        : 'N/A'
+    const fmt69bis = r.art_69_bis_found ? 'Encontrado' : 'N/A'
+    const fmt49bis = r.art_49_bis_found ? 'Encontrado' : 'N/A'
+    return {
+        id: String(r.id),
+        empresa: r.razon_social,
+        rfc: r.rfc,
+        art69: fmt69,
+        art69B: fmt69b,
+        art69BIS: fmt69bis,
+        art49BIS: fmt49bis,
+    }
+}
+
+// ── URL param handlers (must be inside Suspense) ──────────────────────────────
+
+interface ParamHandlerProps {
+    openUploadModal: (ctx?: ChatContext) => void
+    chatContext: ChatContext
+    onScanId: (id: string) => void
+}
+
+function URLParamHandler({ openUploadModal, chatContext, onScanId }: ParamHandlerProps) {
     const searchParams = useSearchParams()
-    const didOpen = useRef(false)
+    const didUpload = useRef(false)
+    const didScan = useRef(false)
+
     useEffect(() => {
-        if (searchParams.get('upload') === '1' && !didOpen.current) {
-            didOpen.current = true
+        if (searchParams.get('upload') === '1' && !didUpload.current) {
+            didUpload.current = true
             openUploadModal(chatContext)
             window.history.replaceState({}, '', '/tablero')
         }
-    }, [searchParams, openUploadModal, chatContext])
+        const scanId = searchParams.get('scan_id')
+        if (scanId && !didScan.current) {
+            didScan.current = true
+            onScanId(scanId)
+            window.history.replaceState({}, '', '/tablero')
+        }
+    }, [searchParams, openUploadModal, chatContext, onScanId])
+
     return null
 }
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function TableroPage() {
     const { openUploadModal } = useUploadModal()
     const [notificationModal, setNotificationModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 })
-    const [activeAlerts, setActiveAlerts] = useState(ALERTS)
+    const [activeAlerts, setActiveAlerts] = useState<Alert[]>([])
+    const [tableData, setTableData] = useState<ReturnType<typeof resultToTableRow>[]>([])
     const [chatContext, setChatContext] = useState<ChatContext>({})
+    const [scanProgress, setScanProgress] = useState<{ active: boolean; pct: number; status: string }>({
+        active: false,
+        pct: 0,
+        status: '',
+    })
+
+    const pollInterval = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const loadScanResults = useCallback(async (scanId: string) => {
+        try {
+            const data = await apiClient.getScanResults(scanId)
+            const nonClear = data.results.filter((r) => r.risk_level !== 'CLEAR')
+            setActiveAlerts(nonClear.map(resultToAlert))
+            setTableData(data.results.map(resultToTableRow))
+            setScanProgress({ active: false, pct: 100, status: data.status })
+        } catch {
+            setScanProgress((p) => ({ ...p, active: false }))
+        }
+    }, [])
+
+    const startPolling = useCallback((scanId: string) => {
+        setScanProgress({ active: true, pct: 0, status: 'pending' })
+
+        const poll = async () => {
+            try {
+                const status = await apiClient.getScanStatus(scanId)
+                setScanProgress({ active: true, pct: status.progress, status: status.status })
+
+                if (status.status === 'completed' || status.status === 'failed') {
+                    if (pollInterval.current) clearTimeout(pollInterval.current)
+                    if (status.status === 'completed') await loadScanResults(scanId)
+                    else setScanProgress({ active: false, pct: 0, status: 'failed' })
+                } else {
+                    pollInterval.current = setTimeout(poll, 2000)
+                }
+            } catch {
+                if (pollInterval.current) clearTimeout(pollInterval.current)
+                setScanProgress({ active: false, pct: 0, status: 'error' })
+            }
+        }
+
+        poll()
+    }, [loadScanResults])
+
+    useEffect(() => {
+        return () => { if (pollInterval.current) clearTimeout(pollInterval.current) }
+    }, [])
+
+    const handleScanId = useCallback((id: string) => startPolling(id), [startPolling])
 
     const unreadCount = activeAlerts.length
 
@@ -101,10 +175,14 @@ export default function TableroPage() {
 
     return (
         <AuthGuard>
-            {/* UploadParamHandler uses useSearchParams — must be inside Suspense */}
             <Suspense fallback={null}>
-                <UploadParamHandler openUploadModal={openUploadModal} chatContext={chatContext} />
+                <URLParamHandler
+                    openUploadModal={openUploadModal}
+                    chatContext={chatContext}
+                    onScanId={handleScanId}
+                />
             </Suspense>
+
             <div className="flex h-screen bg-previa-background overflow-hidden">
                 <Sidebar onWatchlistSelect={handleWatchlistSelect} />
 
@@ -131,7 +209,6 @@ export default function TableroPage() {
                                     />
                                 </div>
 
-                                {/* Upload button — opens modal */}
                                 <button
                                     onClick={() => openUploadModal(chatContext)}
                                     className="flex items-center space-x-1.5 px-3 py-1.5 bg-previa-accent/10 text-previa-accent text-sm rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 transition-colors"
@@ -140,7 +217,6 @@ export default function TableroPage() {
                                     <span>Subir</span>
                                 </button>
 
-                                {/* Bell with badge */}
                                 <button
                                     onClick={handleBellClick}
                                     className="relative text-previa-muted hover:text-previa-accent transition-colors p-1"
@@ -164,49 +240,93 @@ export default function TableroPage() {
                         </div>
                     </header>
 
-                    {/* Content Area */}
-                    <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                        {/* Alert Cards — clickable */}
-                        <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <h2 className="text-sm font-semibold text-previa-muted uppercase tracking-wider">
-                                    Alertas Activas
-                                </h2>
-                                <button
-                                    onClick={handleBellClick}
-                                    className="text-xs text-previa-accent hover:underline"
-                                >
-                                    Ver todas ({unreadCount})
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                {activeAlerts.map((alert) => (
-                                    <button
-                                        key={alert.id}
-                                        onClick={() => handleAlertClick(alert.id)}
-                                        className="text-left hover:scale-[1.01] active:scale-[0.99] transition-transform"
-                                    >
-                                        <AlertCard
-                                            severity={alert.severity}
-                                            article={alert.article}
-                                            rfc={alert.rfc}
-                                            entityName={alert.entityName}
-                                            status={alert.status}
-                                        />
-                                    </button>
-                                ))}
+                    {/* Scan progress bar */}
+                    {scanProgress.active && (
+                        <div className="flex-shrink-0 px-5 pt-4">
+                            <div className="bg-previa-surface border border-previa-border rounded-xl px-4 py-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-semibold text-previa-ink">
+                                        Verificando empresas ante el SAT...
+                                    </span>
+                                    <span className="text-xs text-previa-muted">{Math.round(scanProgress.pct)}%</span>
+                                </div>
+                                <div className="h-1.5 bg-previa-background rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-previa-accent rounded-full transition-all duration-500"
+                                        style={{ width: `${scanProgress.pct}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-previa-muted mt-1 capitalize">{scanProgress.status}</p>
                             </div>
                         </div>
+                    )}
 
-                        {/* Compliance Table */}
-                        <ComplianceTable data={TABLE_DATA} />
+                    {/* Content Area */}
+                    <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                        {tableData.length === 0 && !scanProgress.active ? (
+                            /* Empty state */
+                            <div className="flex flex-col items-center justify-center h-full text-center py-20">
+                                <FileSpreadsheet className="w-16 h-16 text-previa-muted/40 mb-4" />
+                                <h2 className="text-lg font-semibold text-previa-ink mb-1">
+                                    Sin resultados
+                                </h2>
+                                <p className="text-sm text-previa-muted max-w-xs mb-5">
+                                    Sube un dataset de proveedores o clientes para iniciar la verificación SAT.
+                                </p>
+                                <button
+                                    onClick={() => openUploadModal(chatContext)}
+                                    className="flex items-center space-x-2 px-4 py-2 bg-previa-accent text-white text-sm rounded-lg hover:bg-previa-accent/90 transition-colors"
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    <span>Subir dataset</span>
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Alert Cards */}
+                                {activeAlerts.length > 0 && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h2 className="text-sm font-semibold text-previa-muted uppercase tracking-wider">
+                                                Alertas Activas
+                                            </h2>
+                                            <button
+                                                onClick={handleBellClick}
+                                                className="text-xs text-previa-accent hover:underline"
+                                            >
+                                                Ver todas ({unreadCount})
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {activeAlerts.map((alert) => (
+                                                <button
+                                                    key={alert.id}
+                                                    onClick={() => handleAlertClick(alert.id)}
+                                                    className="text-left hover:scale-[1.01] active:scale-[0.99] transition-transform"
+                                                >
+                                                    <AlertCard
+                                                        severity={alert.severity}
+                                                        article={alert.article}
+                                                        rfc={alert.rfc}
+                                                        entityName={alert.entityName}
+                                                        status={alert.status}
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Compliance Table */}
+                                <ComplianceTable data={tableData} />
+                            </>
+                        )}
                     </div>
                 </main>
 
                 <AIAssistant context={chatContext} />
             </div>
 
-            {/* Notification Detail Modal */}
             {notificationModal.open && (
                 <NotificationModal
                     alerts={activeAlerts}

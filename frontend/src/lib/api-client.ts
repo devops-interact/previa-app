@@ -11,6 +11,7 @@
 import type {
     ScanCreateResponse,
     ScanStatusResponse,
+    ScanResultsResponse,
     RFCLookupResponse,
     Organization,
     Watchlist,
@@ -144,6 +145,19 @@ class APIClient {
 
     async getScanStatus(scanId: string): Promise<ScanStatusResponse> {
         const response = await fetch(`${this.baseURL}/api/scan/${scanId}`, {
+            headers: this.headers(),
+        })
+
+        if (!response.ok) {
+            const detail = await this.extractError(response)
+            throw new Error(detail)
+        }
+
+        return response.json()
+    }
+
+    async getScanResults(scanId: string): Promise<ScanResultsResponse> {
+        const response = await fetch(`${this.baseURL}/api/scan/${scanId}/results`, {
             headers: this.headers(),
         })
 

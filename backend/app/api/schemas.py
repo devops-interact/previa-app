@@ -76,6 +76,41 @@ class RFCLookupResponse(BaseModel):
 
 
 # ============================================================
+# Scan Results
+# ============================================================
+
+class EntityResult(BaseModel):
+    """Screening result for a single entity in a scan."""
+    id: int
+    rfc: str
+    razon_social: str
+    tipo_persona: Optional[str] = None
+    relacion: Optional[str] = None
+    risk_score: int
+    risk_level: str           # CRITICAL, HIGH, MEDIUM, LOW, CLEAR
+    art_69b_found: bool
+    art_69b_status: Optional[str] = None
+    art_69b_oficio: Optional[str] = None
+    art_69b_authority: Optional[str] = None
+    art_69b_motivo: Optional[str] = None
+    art_69b_dof_url: Optional[str] = None
+    art_69_found: bool
+    art_69_categories: List[dict] = []
+    art_69_bis_found: bool
+    art_49_bis_found: bool
+    screened_at: Optional[datetime] = None
+
+
+class ScanResultsResponse(BaseModel):
+    """Aggregated results for a completed scan."""
+    scan_id: str
+    status: str
+    total_entities: int
+    processed_entities: int
+    results: List[EntityResult]
+
+
+# ============================================================
 # Entity Input
 # ============================================================
 

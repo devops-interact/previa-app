@@ -55,6 +55,36 @@ export interface ScanStatusResponse {
     error_message?: string
 }
 
+/** Per-entity result returned by GET /scan/{scan_id}/results */
+export interface ScanEntityResult {
+    id: number
+    rfc: string
+    razon_social: string
+    tipo_persona?: string
+    relacion?: string
+    risk_score: number
+    risk_level: RiskLevel
+    art_69b_found: boolean
+    art_69b_status?: string
+    art_69b_oficio?: string
+    art_69b_authority?: string
+    art_69b_motivo?: string
+    art_69b_dof_url?: string
+    art_69_found: boolean
+    art_69_categories: Record<string, unknown>[]
+    art_69_bis_found: boolean
+    art_49_bis_found: boolean
+    screened_at?: string
+}
+
+export interface ScanResultsResponse {
+    scan_id: string
+    status: ScanStatus
+    total_entities: number
+    processed_entities: number
+    results: ScanEntityResult[]
+}
+
 export interface Art69BFinding {
     found: boolean
     status?: Art69BStatus

@@ -89,6 +89,19 @@ async def lifespan(app: FastAPI):
                 await db.commit()
                 logger.info("Demo user created: %s (documented credentials)", default_demo_email)
 
+    # Seed demo SATDataset sentinel so screening mock data is always reachable
+    from app.data.db.models import SATDataset
+    from datetime import datetime as _dt
+
+    async with AsyncSessionLocal() as db:
+        for ds_name in ("lista_69b", "art69_creditos_firmes", "art69_no_localizados",
+                        "art69_creditos_cancelados", "art69_sentencias", "art69_bis", "art49_bis"):
+            r = await db.execute(select(SATDataset).where(SATDataset.dataset_name == ds_name))
+            if r.scalar_one_or_none() is None:
+                db.add(SATDataset(dataset_name=ds_name, last_updated=_dt.utcnow(), row_count=0))
+        await db.commit()
+        logger.info("SAT dataset sentinel rows ensured")
+
     # Scheduler (background SAT data refresh)
     from app.scheduler import start_scheduler, shutdown_scheduler
     from app.agent.tools.constitution import ConstitutionIngester
