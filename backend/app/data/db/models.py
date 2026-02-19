@@ -188,6 +188,16 @@ class SATDataset(Base):
     file_path = Column(String, nullable=True)
 
 
+class SweepMetadata(Base):
+    """Single row: last daily SAT sweep completion time and totals (for UI indicator)."""
+    __tablename__ = "sweep_metadata"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    last_completed_at = Column(DateTime, nullable=True)
+    total_files = Column(Integer, default=0)
+    total_rows = Column(Integer, default=0)
+
+
 class PublicNotice(Base):
     """
     Indexed public notices from DOF (dof.gob.mx) and SAT Datos Abiertos

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -12,13 +12,20 @@ logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
 
+# Phased SAT sweep: 4 batches at 6:00, 6:30, 7:00, 7:30 UTC; last batch runs sweep
 
-async def _ingest_then_sweep():
-    """Run full data ingestion then sweep watchlist companies.
-    Downloads all listed files from SAT contribuyentes_publicados (and other pages)
-    so the agent can validate flags and assess severity from real data."""
-    await run_ingestion(sat_max_files=50)
-    await sweep_watchlist_companies()
+async def _run_sat_batch(batch_index: int):
+    """Run one SAT ingestion batch (0–3). Batch 3 also runs watchlist sweep."""
+    await run_ingestion(sat_batch_index=batch_index)
+    if batch_index == 3:
+        await sweep_watchlist_companies()
+        logger.info("Daily SAT sweep (4 batches) and watchlist sweep completed.")
+
+
+async def _sat_batch_0(): await _run_sat_batch(0)
+async def _sat_batch_1(): await _run_sat_batch(1)
+async def _sat_batch_2(): await _run_sat_batch(2)
+async def _sat_batch_3(): await _run_sat_batch(3)
 
 
 def start_scheduler():
@@ -30,21 +37,22 @@ def start_scheduler():
             id='update_constitution',
             replace_existing=True
         )
-        # SAT daily sweep: first run 30s after startup, then every 24h (no asyncio task)
-        scheduler.add_job(
-            _ingest_then_sweep,
-            "interval",
-            days=1,
-            start_date=datetime.utcnow() + timedelta(seconds=30),
-            id='daily_sat_sweep',
-            replace_existing=True,
-            max_instances=1,
-            misfire_grace_time=3600,
-        )
+        # SAT daily sweep in 4 phases at 6:00, 6:30, 7:00, 7:30 UTC (full access, no OOM)
+        batch_jobs = [(_sat_batch_0, "daily_sat_batch_0", (6, 0)), (_sat_batch_1, "daily_sat_batch_1", (6, 30)),
+                      (_sat_batch_2, "daily_sat_batch_2", (7, 0)), (_sat_batch_3, "daily_sat_batch_3", (7, 30))]
+        for fn, job_id, (hour, minute) in batch_jobs:
+            scheduler.add_job(
+                fn,
+                CronTrigger(hour=hour, minute=minute),
+                id=job_id,
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=3600,
+            )
         scheduler.start()
         logger.info(
             "Scheduler started. Jobs: update_constitution (Mon 3:00), "
-            "daily_sat_sweep (30s after startup, then every 24h)"
+            "daily_sat_batch_0..3 (6:00, 6:30, 7:00, 7:30 UTC); batch 3 runs sweep."
         )
 
 

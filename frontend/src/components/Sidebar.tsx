@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
     ChevronDown, ChevronRight, FileText, Settings, User, LogOut,
-    Building2, List, Plus, LayoutGrid, Menu, X,
+    Building2, List, Plus, LayoutGrid, Menu, X, RefreshCw,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import type { Organization, Watchlist } from '@/types'
@@ -24,6 +24,11 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
     const [loadingOrgs, setLoadingOrgs] = useState(true)
     const [activeWatchlist, setActiveWatchlist] = useState<number | null>(null)
     const [mobileOpen, setMobileOpen] = useState(false)
+    const [sweepStatus, setSweepStatus] = useState<{
+        last_completed_at: string | null
+        total_files: number
+        total_rows: number
+    } | null>(null)
 
     // Close mobile drawer on route change (e.g. after clicking a link)
     useEffect(() => {
@@ -32,6 +37,22 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
     useEffect(() => {
         loadOrganizations()
+    }, [])
+
+    useEffect(() => {
+        const loadSweepStatus = async () => {
+            try {
+                const res = await apiClient.healthCheck() as {
+                    sweep_status?: { last_completed_at: string | null; total_files: number; total_rows: number } | null
+                }
+                setSweepStatus(res.sweep_status ?? null)
+            } catch {
+                setSweepStatus(null)
+            }
+        }
+        loadSweepStatus()
+        const t = setInterval(loadSweepStatus, 60_000)
+        return () => clearInterval(t)
     }, [])
 
     const loadOrganizations = async () => {
@@ -332,6 +353,36 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                         </ul>
                     </div>
                 </nav>
+
+                {/* Daily sweep indicator — bottom of sidenav */}
+                <div className="flex-shrink-0 border-t border-previa-border px-4 py-3 bg-previa-surface-hover/50">
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <RefreshCw className="w-3 h-3 text-previa-muted" />
+                        <span className="text-xs font-semibold text-previa-muted uppercase tracking-wider">
+                            Barrido diario SAT
+                        </span>
+                    </div>
+                    {sweepStatus?.last_completed_at ? (
+                        <>
+                            <div className="text-xs text-previa-ink">
+                                {new Date(sweepStatus.last_completed_at).toLocaleDateString(undefined, {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                })}{' '}
+                                {new Date(sweepStatus.last_completed_at).toLocaleTimeString(undefined, {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                })}
+                            </div>
+                            <div className="text-xs text-previa-muted mt-0.5">
+                                {sweepStatus.total_files} archivos · {sweepStatus.total_rows.toLocaleString()} líneas
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-xs text-previa-muted">Sin barrido aún</div>
+                    )}
+                </div>
             </aside>
 
             {/* Organization management modal */}

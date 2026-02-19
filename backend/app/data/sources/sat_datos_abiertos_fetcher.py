@@ -263,9 +263,13 @@ class SATDatosAbiertosFetcher:
         return None
 
     @classmethod
-    def parse_file_to_df(cls, data: bytes, url: str) -> Optional[pd.DataFrame]:
-        """Read bytes into a pandas DataFrame (Excel, CSV, or ZIP with inner .xlsx/.xls/.csv)."""
+    def parse_file_to_df(cls, data: bytes, url: str, max_rows: Optional[int] = None) -> Optional[pd.DataFrame]:
+        """Read bytes into a pandas DataFrame (Excel, CSV, or ZIP).
+        max_rows: if set, cap rows (CSV: nrows=; Excel/ZIP: truncate) to keep memory safe per batch."""
         lower = url.lower()
+        kw_csv: Dict[str, Any] = {"dtype": str}
+        if max_rows is not None:
+            kw_csv["nrows"] = max_rows
         # ZIP: by URL or by magic (PK\x03\x04)
         if lower.endswith(".zip") or (len(data) >= 4 and data[:4] == b"PK\x03\x04"):
             try:
@@ -280,7 +284,10 @@ class SATDatosAbiertosFetcher:
                             dfs.append(df)
                     if not dfs:
                         return None
-                    return pd.concat(dfs, ignore_index=True)
+                    out = pd.concat(dfs, ignore_index=True)
+                    if max_rows is not None and len(out) > max_rows:
+                        out = out.head(max_rows)
+                    return out
             except Exception as e:
                 logger.warning("SAT ZIP %s failed: %s", url, e)
                 return None
@@ -288,14 +295,16 @@ class SATDatosAbiertosFetcher:
             if lower.endswith(".csv"):
                 for enc in ("utf-8", "latin-1", "cp1252"):
                     try:
-                        return pd.read_csv(io.BytesIO(data), encoding=enc, dtype=str)
+                        return pd.read_csv(io.BytesIO(data), encoding=enc, **kw_csv)
                     except UnicodeDecodeError:
                         continue
-                return pd.read_csv(io.BytesIO(data), encoding="latin-1", dtype=str, on_bad_lines="skip")
+                return pd.read_csv(io.BytesIO(data), encoding="latin-1", on_bad_lines="skip", **kw_csv)
             elif lower.endswith(".xlsx"):
-                return pd.read_excel(io.BytesIO(data), engine="openpyxl", dtype=str)
+                df = pd.read_excel(io.BytesIO(data), engine="openpyxl", dtype=str)
+                return df.head(max_rows) if max_rows is not None and len(df) > max_rows else df
             elif lower.endswith(".xls"):
-                return pd.read_excel(io.BytesIO(data), engine="xlrd", dtype=str)
+                df = pd.read_excel(io.BytesIO(data), engine="xlrd", dtype=str)
+                return df.head(max_rows) if max_rows is not None and len(df) > max_rows else df
         except Exception as e:
             logger.warning("SAT parse %s failed: %s", url, e)
         return None
@@ -349,16 +358,20 @@ class SATDatosAbiertosFetcher:
     # ── Step 3: orchestrate ──────────────────────────────────────────────
 
     @classmethod
-    async def run(cls, max_files: int = 10) -> List[Dict[str, Any]]:
+    async def run(
+        cls,
+        max_files: int = 10,
+        max_rows_per_file: Optional[int] = None,
+        start_file_offset: int = 0,
+    ) -> List[Dict[str, Any]]:
         """
-        Fetch each SAT Datos Abiertos landing page, discover download links,
-        download Excel/CSV/ZIP files, parse them, and return notice dicts.
-        contribuyentes_publicados.html is processed first and contains the main
-        Art. 69 / 69-B / 69-B Bis lists; screening tools use this data to
-        validate flags and assess severity (risk score).
+        Fetch SAT Datos Abiertos in a single batch (for phased daily sweep).
+        start_file_offset: skip this many files across all pages, then take up to max_files.
+        max_rows_per_file: if set, cap rows per file to keep memory safe per batch (e.g. 40_000).
         """
         all_notices: List[Dict[str, Any]] = []
         files_processed = 0
+        files_skipped = 0
 
         for path, label in SAT_PAGES:
             html = await cls.fetch_page(path)
@@ -370,6 +383,9 @@ class SATDatosAbiertosFetcher:
             logger.info("SAT %s: found %d download links", label, len(links))
 
             for link in links:
+                if files_skipped < start_file_offset:
+                    files_skipped += 1
+                    continue
                 if files_processed >= max_files:
                     break
 
@@ -381,7 +397,7 @@ class SATDatosAbiertosFetcher:
                 if data is None:
                     continue
 
-                df = cls.parse_file_to_df(data, link["url"])
+                df = cls.parse_file_to_df(data, link["url"], max_rows=max_rows_per_file)
                 if df is None or df.empty:
                     continue
 
@@ -393,9 +409,9 @@ class SATDatosAbiertosFetcher:
             if files_processed >= max_files:
                 break
 
-        # Fallback: if no links or no notices from HTML, try known SAT file URLs.
-        landing_url = cls._url("index.html")
-        if (not all_notices or files_processed == 0) and files_processed < max_files:
+        # Fallback: only when we have no links from pages and this is the first batch
+        if (not all_notices or files_processed == 0) and start_file_offset == 0:
+            landing_url = cls._url("index.html")
             for path_or_url, article_type, status in KNOWN_SAT_FILES:
                 if files_processed >= max_files:
                     break
@@ -404,7 +420,7 @@ class SATDatosAbiertosFetcher:
                 data = await cls.download_file(url, referer=landing_url)
                 if data is None:
                     continue
-                df = cls.parse_file_to_df(data, url)
+                df = cls.parse_file_to_df(data, url, max_rows=max_rows_per_file)
                 if df is None or df.empty:
                     continue
                 notices = cls.extract_notices_from_df(df, url, article_type, status)
@@ -412,5 +428,5 @@ class SATDatosAbiertosFetcher:
                 all_notices.extend(notices)
                 files_processed += 1
 
-        logger.info("SAT Datos Abiertos total: %d notices from %d files", len(all_notices), files_processed)
+        logger.info("SAT batch: %d notices from %d files (offset=%d)", len(all_notices), files_processed, start_file_offset)
         return all_notices
