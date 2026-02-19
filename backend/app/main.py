@@ -25,6 +25,7 @@ from app.api.routes import health, scan, rfc
 from app.api.routes import auth as auth_router
 from app.api.routes import organizations as org_router
 from app.api.routes import chat as chat_router
+from app.api.routes import news as news_router
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -155,6 +156,7 @@ app.include_router(scan.router, prefix="/api", tags=["Scan"])
 app.include_router(rfc.router, prefix="/api", tags=["RFC"])
 app.include_router(org_router.router, prefix="/api", tags=["Organizations"])
 app.include_router(chat_router.router, prefix="/api", tags=["Chat"])
+app.include_router(news_router.router, prefix="/api", tags=["News"])
 
 # ── Root ──────────────────────────────────────────────────────────────────────
 

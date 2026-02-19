@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     # Third-Party APIs (Optional)
     reachcore_api_key: str = ""
     captcha_api_key: str = ""
+    news_api_key: str = ""  # NewsAPI.org — for controversial news indexing (optional)
     
     # Email Notifications (Optional)
     smtp_host: str = "smtp.gmail.com"

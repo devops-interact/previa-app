@@ -1,7 +1,7 @@
 """
 Previa App — AI Chat API
 Connects to Anthropic Claude for fiscal compliance assistant conversations.
-The agent understands CSV/XLS column structures and can manage watchlists.
+The agent understands CSV/XLS column structures, watchlists, and indexed controversial news about empresas.
 """
 
 import logging
@@ -9,9 +9,13 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from anthropic import Anthropic
+from sqlalchemy import select
 
 from app.api.deps import get_current_user
 from app.config.settings import settings
+from app.data.db.session import get_db
+from app.data.db.models import CompanyNews
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -35,7 +39,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
-    context: Optional[dict] = None   # e.g. {"organization": "Grupo X", "watchlist": "Proveedores"}
+    context: Optional[dict] = None   # e.g. {"organization": "Grupo X", "watchlist": "Proveedores", "watchlist_id": 1}
 
 class ChatResponse(BaseModel):
     response: str
@@ -75,7 +79,33 @@ Reglas:
 - Para cargar datos, siempre sugiere el flujo: Subir CSV/XLS → Seleccionar Watchlist → Confirmar mapeo
 - No inventes datos del SAT ni resultados de screening; solo orienta al usuario en el proceso
 - Si detectas que el usuario quiere crear una organización, indícale que debe hacerlo desde el panel lateral
+- Tienes acceso a noticias indexadas sobre empresas (controversias, cobertura en medios). Usa el bloque "Noticias sobre empresas" cuando el usuario pregunte por una empresa o por noticias recientes; cita título y URL cuando sea relevante.
 """
+
+# ── News context for agent ────────────────────────────────────────────────────
+
+async def _get_news_context(db: AsyncSession, watchlist_id: Optional[int], limit: int = 25) -> str:
+    """Fetch indexed controversial news (by watchlist or recent) and format for system prompt."""
+    q = (
+        select(CompanyNews)
+        .order_by(CompanyNews.published_at.desc().nullslast(), CompanyNews.indexed_at.desc())
+        .limit(limit)
+    )
+    if watchlist_id is not None:
+        q = q.where(CompanyNews.watchlist_id == watchlist_id)
+    result = await db.execute(q)
+    rows = result.scalars().all()
+    if not rows:
+        return ""
+    lines = ["Noticias indexadas sobre empresas (controversias / cobertura en medios):"]
+    for r in rows:
+        company = (r.razon_social or r.rfc or "N/A").strip()
+        date_str = r.published_at.strftime("%Y-%m-%d") if r.published_at else "s/f"
+        lines.append(f"- [{company}] {r.title} — {r.url} ({date_str})")
+        if r.summary:
+            lines.append(f"  Resumen: {r.summary[:200]}{'...' if len(r.summary) > 200 else ''}")
+    return "\n".join(lines)
+
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
@@ -83,10 +113,12 @@ Reglas:
 async def chat(
     request: ChatRequest,
     current_user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Send a message to the Previa App AI assistant.
     Maintains conversation history and returns a response plus optional suggested action.
+    Injects indexed controversial news about empresas when available.
     """
     try:
         client = get_anthropic_client()
@@ -109,6 +141,14 @@ async def chat(
                 ctx_parts.append(f"Watchlist activa: {wl}")
             if ctx_parts:
                 system += "\n\nContexto actual:\n" + "\n".join(ctx_parts)
+
+        # Inject indexed controversial news for agent to search/cite
+        watchlist_id = None
+        if request.context and isinstance(request.context.get("watchlist_id"), (int, float)):
+            watchlist_id = int(request.context["watchlist_id"])
+        news_block = await _get_news_context(db, watchlist_id)
+        if news_block:
+            system += "\n\n" + news_block
 
         response = client.messages.create(
             model=settings.anthropic_model,

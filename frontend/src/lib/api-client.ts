@@ -300,6 +300,35 @@ class APIClient {
         return response.json()
     }
 
+    // ── News (controversial news about empresas) ──────────────────────────────
+
+    async searchNews(params?: {
+        rfc?: string
+        company?: string
+        watchlist_id?: number
+        limit?: number
+    }): Promise<Array<{
+        id: number
+        rfc: string | null
+        razon_social: string | null
+        title: string
+        url: string
+        summary: string | null
+        published_at: string | null
+        source: string
+    }>> {
+        const searchParams = new URLSearchParams()
+        if (params?.rfc) searchParams.set('rfc', params.rfc)
+        if (params?.company) searchParams.set('company', params.company)
+        if (params?.watchlist_id != null) searchParams.set('watchlist_id', String(params.watchlist_id))
+        if (params?.limit != null) searchParams.set('limit', String(params.limit))
+        const qs = searchParams.toString()
+        const url = `${this.baseURL}/api/news${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: this.headers() })
+        if (!response.ok) throw new Error(await this.extractError(response))
+        return response.json()
+    }
+
     // ── Chat ──────────────────────────────────────────────────────────────────
 
     async sendChatMessage(

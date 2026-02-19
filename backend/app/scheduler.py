@@ -7,6 +7,7 @@ from apscheduler.triggers.cron import CronTrigger
 from app.agent.tools.constitution import ConstitutionIngester
 from app.data.sources.ingestion_job import run_ingestion
 from app.data.sources.sweep_job import sweep_watchlist_companies
+from app.data.sources.news_ingestion_job import run_news_ingestion
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,11 @@ async def _sat_batch_0(): await _run_sat_batch(0)
 async def _sat_batch_1(): await _run_sat_batch(1)
 async def _sat_batch_2(): await _run_sat_batch(2)
 async def _sat_batch_3(): await _run_sat_batch(3)
+
+
+async def _run_news_ingestion():
+    """Index controversial news for watchlist companies (NewsAPI; no-op if key not set)."""
+    await run_news_ingestion()
 
 
 def start_scheduler():
@@ -49,10 +55,20 @@ def start_scheduler():
                 max_instances=1,
                 misfire_grace_time=3600,
             )
+        # Controversial news indexing for watchlist companies (8:00 UTC; no-op if NEWS_API_KEY unset)
+        scheduler.add_job(
+            _run_news_ingestion,
+            CronTrigger(hour=8, minute=0),
+            id='daily_news_ingestion',
+            replace_existing=True,
+            max_instances=1,
+            misfire_grace_time=3600,
+        )
         scheduler.start()
         logger.info(
             "Scheduler started. Jobs: update_constitution (Mon 3:00), "
-            "daily_sat_batch_0..3 (6:00, 6:30, 7:00, 7:30 UTC); batch 3 runs sweep."
+            "daily_sat_batch_0..3 (6:00, 6:30, 7:00, 7:30 UTC); batch 3 runs sweep; "
+            "daily_news_ingestion (8:00 UTC)."
         )
 
 

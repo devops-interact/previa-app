@@ -228,3 +228,24 @@ class PublicNotice(Base):
     __table_args__ = (
         Index("ix_pn_dedup", "source", "rfc", "article_type", "status", unique=False),
     )
+
+
+class CompanyNews(Base):
+    """
+    Indexed controversial or relevant news about empresas (watchlist companies).
+    Used by the chat agent to surface news when the user asks about a company.
+    Populated by the news ingestion job (e.g. NewsAPI search by razon_social).
+    """
+    __tablename__ = "company_news"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rfc = Column(String, index=True, nullable=True)
+    razon_social = Column(String, nullable=True, index=True)
+    source = Column(String, nullable=False)           # e.g. 'news_api', 'rss'
+    title = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    summary = Column(Text, nullable=True)
+    published_at = Column(DateTime, nullable=True)
+    indexed_at = Column(DateTime, default=datetime.utcnow)
+    # Optional: link to watchlist for scoping
+    watchlist_id = Column(Integer, ForeignKey("watchlists.id"), nullable=True, index=True)
