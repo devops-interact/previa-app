@@ -18,11 +18,11 @@ interface Shape {
 }
 
 const COLORS = [
-    'rgba(59, 130, 246, ',   // blue-500
-    'rgba(96, 165, 250, ',   // blue-400
-    'rgba(37, 99, 235, ',    // blue-600
-    'rgba(147, 197, 253, ',  // blue-300
-    'rgba(30, 64, 175, ',    // blue-800
+    'rgba(6, 214, 160, ',    // accent
+    'rgba(51, 228, 184, ',   // accent-glow
+    'rgba(4, 170, 128, ',    // darker accent
+    'rgba(100, 240, 200, ',  // lighter accent
+    'rgba(42, 41, 63, ',     // surface border
 ]
 
 function drawTriangle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number) {
@@ -174,7 +174,7 @@ export function GeometricBackground() {
                     const d = Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
                     if (d < 180) {
                         const lineOpacity = (1 - d / 180) * 0.06
-                        ctx.strokeStyle = `rgba(59, 130, 246, ${lineOpacity})`
+                        ctx.strokeStyle = `rgba(6, 214, 160, ${lineOpacity})`
                         ctx.lineWidth = 0.5
                         ctx.beginPath()
                         ctx.moveTo(a.x, a.y)

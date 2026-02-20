@@ -6,7 +6,7 @@ import {
     Search, ChevronDown, ChevronRight, ChevronUp, LayoutList, LayoutGrid,
     Plus, Pencil, Check, X, Loader2, Building2, RefreshCw, ShieldAlert, ShieldCheck,
     AlertTriangle, Info, ExternalLink, Calendar, Tag, FileText, Clock, Eye,
-} from 'lucide-react'
+} from '@/lib/icons'
 import { Sidebar } from '@/components/Sidebar'
 import { AuthGuard } from '@/components/AuthGuard'
 import { TagBadge } from '@/components/TagBadge'
@@ -598,7 +598,7 @@ function CRMPageContent() {
                             <div className="flex items-center gap-2 flex-shrink-0">
                                 <button
                                     onClick={() => openUploadModal(chatContext)}
-                                    className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 bg-previa-accent text-white text-xs rounded-lg hover:bg-previa-accent/90 transition-colors font-semibold"
+                                    className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 bg-previa-accent text-black text-xs rounded-lg hover:bg-previa-accent/90 transition-colors font-semibold"
                                 >
                                     <Plus className="w-3.5 h-3.5" />
                                     Subir dataset
@@ -620,7 +620,7 @@ function CRMPageContent() {
                             <div className="flex items-center gap-1 overflow-x-auto">
                                 <button
                                     onClick={() => setActiveTag('')}
-                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${!activeTag ? 'bg-previa-accent text-white' : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'}`}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${!activeTag ? 'bg-previa-accent text-black' : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'}`}
                                 >
                                     Todas ({empresas.length})
                                 </button>
@@ -628,7 +628,7 @@ function CRMPageContent() {
                                     <button
                                         key={t}
                                         onClick={() => setActiveTag(activeTag === t ? '' : t)}
-                                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${activeTag === t ? 'bg-previa-accent text-white' : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'}`}
+                                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${activeTag === t ? 'bg-previa-accent text-black' : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'}`}
                                     >
                                         {t} ({empresas.filter(e => e.group_tag === t).length})
                                     </button>
@@ -700,7 +700,7 @@ function CRMPageContent() {
                                 {!activeTag && !activeWlId && !searchQ && (
                                     <button
                                         onClick={() => openUploadModal(chatContext)}
-                                        className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-previa-accent text-white text-sm rounded-lg hover:bg-previa-accent/90 transition-colors"
+                                        className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-previa-accent text-black text-sm rounded-lg hover:bg-previa-accent/90 transition-colors"
                                     >
                                         <Plus className="w-4 h-4" />
                                         Subir dataset

@@ -8,40 +8,39 @@
 
 body {
   font-family: var(--font-jetbrains-mono), monospace;
-  background-color: #0a0a0f;
-  color: #e2e8f0;
+  background-color: #000000;
+  color: #DDDDDD;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── Selection ─────────────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(59, 130, 246, 0.35);
-  color: #e2e8f0;
+  background: rgba(6, 214, 160, 0.35);
+  color: #DDDDDD;
 }
 
-/* ── Focus-visible ring (Cursor-style) ─────────────────────────────────────── */
+/* ── Focus-visible ring ───────────────────────────────────────────────────── */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 2px rgba(6, 214, 160, 0.5);
   border-radius: 6px;
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar         { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track   { background: transparent; }
-::-webkit-scrollbar-thumb   { background: #2a2a3a; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #3b4060; }
+::-webkit-scrollbar-thumb   { background: #2A293F; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3960; }
 
 /* Hide scrollbar in nav panels unless hovered */
 aside ::-webkit-scrollbar-thumb { background: transparent; }
-aside:hover ::-webkit-scrollbar-thumb { background: #2a2a3a; }
+aside:hover ::-webkit-scrollbar-thumb { background: #2A293F; }
 
-/* ── Subtle inset border on interactive surfaces ────────────────────────────── */
+/* ── Utility layer ─────────────────────────────────────────────────────────── */
 @layer utilities {
   .text-balance { text-wrap: balance; }
 
-  /* Responsive app container: consistent max-width + horizontal padding */
   .container-app {
     width: 100%;
     max-width: min(100%, 90rem);
@@ -57,13 +56,11 @@ aside:hover ::-webkit-scrollbar-thumb { background: #2a2a3a; }
     .container-app { padding-left: 2rem; padding-right: 2rem; }
   }
 
-  /* Section vertical rhythm */
   .section-gap { margin-bottom: 1.5rem; }
   @media (min-width: 640px) {
     .section-gap { margin-bottom: 2rem; }
   }
 
-  /* Cursor-like "inner glow" on focused inputs */
   .input-cursor {
     @apply bg-previa-background border border-previa-border rounded-lg text-xs text-previa-ink
            placeholder-previa-muted
@@ -71,13 +68,12 @@ aside:hover ::-webkit-scrollbar-thumb { background: #2a2a3a; }
            transition-all duration-150;
   }
 
-  /* Subtle shimmer for loading skeletons */
   .skeleton {
     @apply bg-previa-surface-hover rounded animate-pulse;
   }
 }
 
-/* ── Subtle page-level grid pattern (Cursor background feel) ─────────────── */
+/* ── Subtle page-level grid pattern ────────────────────────────────────────── */
 body::before {
   content: '';
   position: fixed;
@@ -85,8 +81,8 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background-image:
-    linear-gradient(rgba(59,130,246,0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59,130,246,0.015) 1px, transparent 1px);
+    linear-gradient(rgba(6,214,160,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6,214,160,0.012) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 

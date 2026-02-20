@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from '@/lib/icons'
 import { GeometricBackground } from '@/components/GeometricBackground'
 import { apiClient } from '@/lib/api-client'
 
@@ -131,9 +131,9 @@ export default function RegisterPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-previa-accent text-white py-3 rounded-lg font-semibold hover:bg-previa-accent-glow transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-previa-accent/20 flex items-center justify-center gap-2"
+                                className="w-full bg-previa-accent text-black py-3 rounded-lg font-semibold hover:bg-previa-accent-glow transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-previa-accent/20 flex items-center justify-center gap-2"
                             >
-                                {loading && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                {loading && <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                                 {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
                             </button>
                         </form>

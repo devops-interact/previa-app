@@ -5,7 +5,7 @@ import {
     X, AlertTriangle, ChevronLeft, ChevronRight,
     ExternalLink, Printer, Download, FileText, Clock,
     Building2, Shield,
-} from 'lucide-react'
+} from '@/lib/icons'
 import type { Alert, AlertSeverity } from '@/types'
 
 interface NotificationModalProps {

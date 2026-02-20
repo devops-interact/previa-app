@@ -15,8 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.data.db.session import AsyncSessionLocal
 from app.data.db.models import WatchlistCompany, PublicNotice
+from app.agent.tools.sat_cert_checker import check_certificate, cert_expired_days
 from app.config.risk_rules import (
-    Art69BStatus, Art69Category, calculate_risk_score, get_risk_level,
+    Art69BStatus, Art69Category, CertificateStatus,
+    calculate_risk_score, get_risk_level,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,6 +46,15 @@ async def sweep_watchlist_companies():
 
             for rfc, razon in companies:
                 findings = await _screen_rfc_against_notices(db, rfc, razon_social=razon)
+
+                cert_result = await check_certificate(rfc)
+                if cert_result.get("checked"):
+                    findings["cert_status"] = cert_result.get("status")
+                    findings["cert_serial_number"] = cert_result.get("serial_number")
+                    findings["cert_valid_from"] = cert_result.get("valid_from")
+                    findings["cert_valid_to"] = cert_result.get("valid_to")
+                    findings["cert_checked"] = True
+
                 updated = await _update_companies(db, rfc, findings, now)
                 changes += updated
 
@@ -146,20 +157,18 @@ async def _screen_rfc_against_notices(
         if c in _CAT_MAP:
             art_69_enums.append(_CAT_MAP[c])
 
-    risk_findings = {
-        "art_69b_status": art_69b_status,
-        "art_69_categories": art_69_enums,
-        "cert_status": None,
-    }
-    risk_score, risk_level = calculate_risk_score(risk_findings)
-
     return {
-        "risk_score": risk_score,
-        "risk_level": risk_level.value,
+        "art_69b_status_raw": art_69b_status,
         "art_69b_status": art_69b_status.value if art_69b_status != Art69BStatus.NOT_FOUND else None,
         "art_69_categories": art_69_cats or None,
+        "art_69_enums": art_69_enums,
         "art_69_bis_found": art_69_bis_found,
         "art_49_bis_found": art_49_bis_found,
+        "cert_status": None,
+        "cert_checked": False,
+        "cert_serial_number": None,
+        "cert_valid_from": None,
+        "cert_valid_to": None,
     }
 
 
@@ -167,6 +176,19 @@ async def _update_companies(
     db: AsyncSession, rfc: str, findings: Dict, now: datetime
 ) -> int:
     """Update all WatchlistCompany rows matching this RFC and return how many changed."""
+    cert_status_enum = findings.get("cert_status")
+    cert_exp_days = None
+    if cert_status_enum == CertificateStatus.EXPIRED:
+        cert_exp_days = cert_expired_days(findings.get("cert_valid_to"))
+
+    risk_findings = {
+        "art_69b_status": findings.get("art_69b_status_raw", Art69BStatus.NOT_FOUND),
+        "art_69_categories": findings.get("art_69_enums", []),
+        "cert_status": cert_status_enum,
+        "cert_expired_days": cert_exp_days,
+    }
+    risk_score, risk_level = calculate_risk_score(risk_findings)
+
     result = await db.execute(
         select(WatchlistCompany).where(WatchlistCompany.rfc == rfc)
     )
@@ -175,18 +197,18 @@ async def _update_companies(
 
     for c in companies:
         old_level = c.risk_level
-        c.risk_score = findings["risk_score"]
-        c.risk_level = findings["risk_level"]
+        c.risk_score = risk_score
+        c.risk_level = risk_level.value
         c.art_69b_status = findings["art_69b_status"]
         c.art_69_categories = findings["art_69_categories"]
         c.art_69_bis_found = findings["art_69_bis_found"]
         c.art_49_bis_found = findings["art_49_bis_found"]
         c.last_screened_at = now
 
-        if old_level != findings["risk_level"]:
+        if old_level != risk_level.value:
             logger.warning(
                 "RFC %s risk changed: %s → %s (score=%d)",
-                rfc, old_level or "NEW", findings["risk_level"], findings["risk_score"],
+                rfc, old_level or "NEW", risk_level.value, risk_score,
             )
             changed += 1
 

@@ -3,7 +3,7 @@
 import {
     Send, Paperclip, Bot, User as UserIcon, Loader2,
     CheckCircle2, AlertTriangle, FileSpreadsheet, Plus, X,
-} from 'lucide-react'
+} from '@/lib/icons'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { ChatMessage, ChatContext, Alert, AlertSeverity } from '@/types'
 import type { ScanEntityResult } from '@/types'
@@ -346,7 +346,7 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
             <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="lg:hidden fixed bottom-20 right-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl bg-previa-accent text-white shadow-lg shadow-previa-accent/25 hover:bg-previa-accent/90 active:scale-95 transition-all"
+                className="lg:hidden fixed bottom-20 right-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl bg-previa-accent text-black shadow-lg shadow-previa-accent/25 hover:bg-previa-accent/90 active:scale-95 transition-all"
                 aria-label="Abrir agente fiscal"
             >
                 <Bot className="w-5 h-5" />
@@ -471,7 +471,7 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
                             )}
                             <div
                                 className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${msg.role === 'user'
-                                    ? 'bg-previa-accent text-white rounded-tr-sm'
+                                    ? 'bg-previa-accent text-black rounded-tr-sm'
                                     : 'bg-previa-background border border-previa-border text-previa-ink rounded-tl-sm'
                                     }`}
                             >

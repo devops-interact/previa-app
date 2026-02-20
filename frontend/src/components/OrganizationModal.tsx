@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Building2, Plus, Trash2, List, ChevronRight } from 'lucide-react'
+import { X, Building2, Plus, Trash2, List, ChevronRight } from '@/lib/icons'
 import type { Organization, Watchlist } from '@/types'
 import { apiClient } from '@/lib/api-client'
 
@@ -236,7 +236,7 @@ export function OrganizationModal({
                             <button
                                 onClick={handleCreate}
                                 disabled={loading}
-                                className="w-full bg-previa-accent text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-previa-accent/90 transition-colors disabled:opacity-50"
+                                className="w-full bg-previa-accent text-black py-2.5 rounded-xl text-sm font-semibold hover:bg-previa-accent/90 transition-colors disabled:opacity-50"
                             >
                                 {loading ? 'Creando...' : 'Crear Organización'}
                             </button>

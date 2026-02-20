@@ -1,6 +1,6 @@
 'use client'
 
-import { MoreVertical, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { MoreVertical, ChevronUp, ChevronDown, ChevronsUpDown } from '@/lib/icons'
 import { useState } from 'react'
 
 interface ComplianceRow {

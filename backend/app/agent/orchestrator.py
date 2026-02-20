@@ -16,7 +16,8 @@ from app.agent.tools.sat_69b_tool import screen_69b
 from app.agent.tools.sat_69_tool import screen_69
 from app.agent.tools.sat_69_bis_tool import screen_69_bis
 from app.agent.tools.sat_49_bis_tool import screen_49_bis
-from app.config.risk_rules import calculate_risk_score, Art69BStatus
+from app.agent.tools.sat_cert_checker import check_certificate, cert_expired_days
+from app.config.risk_rules import calculate_risk_score, Art69BStatus, CertificateStatus
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +115,8 @@ async def process_entity(entity: Entity, scan_job: ScanJob, db: AsyncSession):
     art_69_bis_result = await screen_69_bis(entity.rfc, db, razon_social=name)
     art_49_bis_result = await screen_49_bis(entity.rfc, db, razon_social=name)
     
-    # TODO: Check certificate status
-    
+    cert_result = await check_certificate(entity.rfc)
+
     # Extract Art. 69 categories for risk calculation
     art_69_categories = []
     if art_69_result.get("found"):
@@ -128,11 +129,20 @@ async def process_entity(entity: Entity, scan_job: ScanJob, db: AsyncSession):
                 except ValueError:
                     logger.warning(f"Unknown Art. 69 category: {cat_type}")
     
+    # Map certificate result into risk‑rule enums
+    cert_status_enum = None
+    cert_exp_days = None
+    if cert_result.get("checked"):
+        cert_status_enum = cert_result.get("status")
+        if cert_status_enum == CertificateStatus.EXPIRED:
+            cert_exp_days = cert_expired_days(cert_result.get("valid_to"))
+
     # Calculate risk
     findings = {
         "art_69b_status": art_69b_result.get("status", Art69BStatus.NOT_FOUND),
         "art_69_categories": art_69_categories,
-        "cert_status": None
+        "cert_status": cert_status_enum,
+        "cert_expired_days": cert_exp_days,
     }
     risk_score, risk_level = calculate_risk_score(findings)
     
@@ -156,7 +166,15 @@ async def process_entity(entity: Entity, scan_job: ScanJob, db: AsyncSession):
         art_69_categories=art_69_result.get("categories", []),
         
         # Certificates
-        cert_checked=False,
+        cert_checked=cert_result.get("checked", False),
+        cert_status=(
+            cert_result["status"].value
+            if cert_result.get("checked") and cert_result.get("status")
+            else None
+        ),
+        cert_serial_number=cert_result.get("serial_number"),
+        cert_valid_from=cert_result.get("valid_from"),
+        cert_valid_to=cert_result.get("valid_to"),
         
         screened_at=datetime.utcnow()
     )
@@ -197,7 +215,19 @@ async def process_entity(entity: Entity, scan_job: ScanJob, db: AsyncSession):
             response_summary=f"Art. 49 BIS Found: {art_49_bis_result.get('found', False)}",
             success=True,
             timestamp=datetime.utcnow()
-        )
+        ),
+        AuditLog(
+            result_id=screening_result.id,
+            source="cert_portal",
+            query=entity.rfc,
+            response_summary=(
+                f"Certificate: checked={cert_result.get('checked')}, "
+                f"status={cert_result.get('status')}, "
+                f"serial={cert_result.get('serial_number')}"
+            ),
+            success=cert_result.get("checked", False),
+            timestamp=datetime.utcnow()
+        ),
     ]
     
     for log in audit_logs:

@@ -3,9 +3,9 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-    ChevronDown, ChevronRight, FileText, Settings, User, LogOut,
-    Building2, List, Plus, LayoutGrid, Menu, X, RefreshCw,
-} from 'lucide-react'
+    ChevronDown, ChevronRight, Settings, LogOut,
+    Building2, List, Plus, LayoutGrid, Menu, X, RefreshCw, Home,
+} from '@/lib/icons'
 import { useState, useEffect } from 'react'
 import type { Organization, Watchlist } from '@/types'
 import { apiClient } from '@/lib/api-client'
@@ -13,6 +13,19 @@ import { OrganizationModal } from './OrganizationModal'
 
 interface SidebarProps {
     onWatchlistSelect?: (orgId: number, wlId: number, orgName: string, wlName: string) => void
+}
+
+function getUserInfo(): { username: string; email: string; initial: string } {
+    if (typeof window === 'undefined') return { username: 'Usuario', email: '', initial: 'U' }
+    try {
+        const auth = JSON.parse(localStorage.getItem('previa_auth') || '{}')
+        const email = auth.email || ''
+        const username = auth.username || email.split('@')[0] || 'Usuario'
+        const initial = username.charAt(0).toUpperCase()
+        return { username, email, initial }
+    } catch {
+        return { username: 'Usuario', email: '', initial: 'U' }
+    }
 }
 
 export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
@@ -30,14 +43,9 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
         total_rows: number
     } | null>(null)
 
-    // Close mobile drawer on route change (e.g. after clicking a link)
-    useEffect(() => {
-        setMobileOpen(false)
-    }, [pathname])
+    useEffect(() => { setMobileOpen(false) }, [pathname])
 
-    useEffect(() => {
-        loadOrganizations()
-    }, [])
+    useEffect(() => { loadOrganizations() }, [])
 
     useEffect(() => {
         const loadSweepStatus = async () => {
@@ -60,12 +68,11 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
             setLoadingOrgs(true)
             const orgs = await apiClient.listOrganizations()
             setOrganizations(orgs)
-            // Auto-expand first org
             if (orgs.length > 0) {
                 setExpandedOrgs(new Set([orgs[0].id]))
             }
         } catch {
-            // Auth may not be ready yet; silently fail
+            /* auth may not be ready */
         } finally {
             setLoadingOrgs(false)
         }
@@ -83,14 +90,13 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
     const handleWatchlistClick = (org: Organization, wl: Watchlist) => {
         setActiveWatchlist(wl.id)
         onWatchlistSelect?.(org.id, wl.id, org.name, wl.name)
+        router.push(`/lista/${wl.id}`)
     }
 
     const handleLogout = () => {
         localStorage.removeItem('previa_auth')
         router.push('/')
     }
-
-    // ── Organization modal callbacks ───────────────────────────────────────────
 
     const handleOrgCreated = (org: Organization) => {
         setOrganizations((prev) => [...prev, org])
@@ -120,19 +126,19 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
         if (activeWatchlist === wlId) setActiveWatchlist(null)
     }
 
+    const user = getUserInfo()
+
     return (
         <>
-            {/* Mobile menu button — visible only on small screens */}
             <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="md:hidden fixed bottom-5 left-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl bg-previa-accent text-white shadow-lg shadow-previa-accent/25 hover:bg-previa-accent/90 active:scale-95 transition-all"
+                className="md:hidden fixed bottom-5 left-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl bg-previa-accent text-black shadow-lg shadow-previa-accent/25 hover:bg-previa-accent/90 active:scale-95 transition-all"
                 aria-label="Abrir menú"
             >
                 <Menu className="w-5 h-5" />
             </button>
 
-            {/* Overlay when sidebar is open on mobile */}
             {mobileOpen && (
                 <button
                     type="button"
@@ -150,7 +156,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                     ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
                 `}
             >
-                {/* Logo + mobile close */}
+                {/* Logo */}
                 <div className="p-4 sm:p-5 border-b border-previa-border flex items-center justify-between gap-3">
                     <Link href="/tablero" className="text-lg sm:text-xl font-bold text-previa-accent tracking-tight truncate" onClick={() => setMobileOpen(false)}>
                         Previa App
@@ -164,28 +170,43 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-                <p className="text-xs text-previa-muted px-4 sm:px-5 -mt-2 pb-3 border-b border-previa-border">Cumplimiento Fiscal SAT</p>
 
-                {/* User Info */}
+                {/* User Info — username + email */}
                 <div className="p-4 border-b border-previa-border flex items-center space-x-3">
                     <div className="w-9 h-9 rounded-full bg-previa-accent/20 text-previa-accent flex items-center justify-center font-semibold text-sm flex-shrink-0">
-                        U
+                        {user.initial}
                     </div>
                     <div className="min-w-0">
                         <div className="text-sm font-semibold text-previa-ink truncate">
-                            {typeof window !== 'undefined'
-                                ? (() => { try { return JSON.parse(localStorage.getItem('previa_auth') || '{}').email || 'Usuario' } catch { return 'Usuario' } })()
-                                : 'Usuario'}
+                            {user.username}
                         </div>
-                        <div className="text-xs text-previa-muted">Analista</div>
+                        <div className="text-xs text-previa-muted truncate">
+                            {user.email}
+                        </div>
                     </div>
                 </div>
 
-                {/* Navigation */}
                 <nav className="flex-1 overflow-y-auto py-4 space-y-1">
 
-                    {/* ── Organizaciones section ───────────────────────────── */}
-                    <div className="px-4 mb-1 pb-12">
+                    {/* ── Tablero link ──────────────────────────────────────── */}
+                    <div className="px-4 mb-2">
+                        <Link
+                            href="/tablero"
+                            className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                                pathname === '/tablero'
+                                    ? 'bg-previa-accent/10 text-previa-accent font-semibold border border-previa-accent/20'
+                                    : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                            }`}
+                        >
+                            <Home className="w-4 h-4" />
+                            <span>Tablero</span>
+                        </Link>
+                    </div>
+
+                    <div className="border-t border-previa-border mx-4 my-2" />
+
+                    {/* ── Organizaciones section ────────────────────────────── */}
+                    <div className="px-4 mb-1 pb-4">
                         <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-semibold text-previa-muted uppercase tracking-wider">
                                 Organizaciones
@@ -217,7 +238,6 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                             <ul className="space-y-0.5">
                                 {organizations.map((org) => (
                                     <li key={org.id}>
-                                        {/* Org row */}
                                         <button
                                             onClick={() => toggleOrg(org.id)}
                                             className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-previa-surface-hover transition-colors group"
@@ -232,35 +252,34 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                             }
                                         </button>
 
-                                        {/* Children under org */}
                                         {expandedOrgs.has(org.id) && (
                                             <ul className="ml-5 border-l border-previa-border pl-3 mt-0.5 space-y-0.5 pb-1">
-                                                {/* Ver empresas → CRM */}
                                                 <li>
                                                     <Link
-                                                        href={`/crm/${org.id}`}
-                                                        className={`w-full flex items-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs transition-all ${pathname === `/crm/${org.id}`
-                                                            ? 'bg-previa-accent/10 text-previa-accent border border-previa-accent/20 font-semibold'
-                                                            : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
-                                                            }`}
+                                                        href={`/organizacion/${org.id}`}
+                                                        className={`w-full flex items-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs transition-all ${
+                                                            pathname === `/organizacion/${org.id}`
+                                                                ? 'bg-previa-accent/10 text-previa-accent border border-previa-accent/20 font-semibold'
+                                                                : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                                                        }`}
                                                     >
                                                         <LayoutGrid className="w-3 h-3 flex-shrink-0" />
                                                         <span>Ver empresas</span>
                                                     </Link>
                                                 </li>
 
-                                                {/* Watchlists */}
                                                 {org.watchlists.length === 0 ? (
-                                                    <li className="text-xs text-previa-muted py-1 px-2 italic">Sin watchlists</li>
+                                                    <li className="text-xs text-previa-muted py-1 px-2 italic">Sin listas</li>
                                                 ) : (
                                                     org.watchlists.map((wl) => (
                                                         <li key={wl.id}>
                                                             <button
                                                                 onClick={() => handleWatchlistClick(org, wl)}
-                                                                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-all ${activeWatchlist === wl.id
-                                                                    ? 'bg-previa-accent/10 text-previa-accent border border-previa-accent/20 font-semibold'
-                                                                    : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
-                                                                    }`}
+                                                                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-all ${
+                                                                    activeWatchlist === wl.id || pathname === `/lista/${wl.id}`
+                                                                        ? 'bg-previa-accent/10 text-previa-accent border border-previa-accent/20 font-semibold'
+                                                                        : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                                                                }`}
                                                             >
                                                                 <div className="flex items-center space-x-1.5 min-w-0">
                                                                     <List className="w-3 h-3 flex-shrink-0" />
@@ -274,14 +293,13 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                                     ))
                                                 )}
 
-                                                {/* Add watchlist / upload */}
                                                 <li>
                                                     <button
                                                         onClick={() => setShowOrgModal(true)}
                                                         className="w-full flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-surface-hover transition-colors"
                                                     >
                                                         <Plus className="w-3 h-3" />
-                                                        <span>Watchlist</span>
+                                                        <span>Lista de Monitoreo</span>
                                                     </button>
                                                 </li>
                                             </ul>
@@ -294,48 +312,20 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
                     <div className="border-t border-previa-border mx-4 my-2" />
 
-                    {/* ── Herramientas ─────────────────────────────────────── */}
-                    <div className="px-4 pb-12">
-                        <h3 className="text-xs font-semibold text-previa-muted uppercase tracking-wider mb-1">
-                            Herramientas
-                        </h3>
-                        <ul className="space-y-0.5">
-                            <li>
-                                <Link
-                                    href="/chat"
-                                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all ${pathname === '/chat'
-                                        ? 'bg-previa-accent/10 text-previa-accent font-semibold border border-previa-accent/20'
-                                        : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
-                                        }`}
-                                >
-                                    <FileText className="w-4 h-4" />
-                                    <span>Agente IA</span>
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div className="border-t border-previa-border mx-4 my-2" />
-
-                    {/* ── Configuración ────────────────────────────────────── */}
-                    <div className="px-4 pb-12">
+                    {/* ── Configuración ─────────────────────────────────────── */}
+                    <div className="px-4 pb-4">
                         <h3 className="text-xs font-semibold text-previa-muted uppercase tracking-wider mb-1">
                             Configuración
                         </h3>
                         <ul className="space-y-0.5">
                             <li>
                                 <Link
-                                    href="#"
-                                    className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover transition-colors"
-                                >
-                                    <User className="w-4 h-4" />
-                                    <span>Cuenta</span>
-                                </Link>
-                            </li>
-                            <li>
-                                <Link
-                                    href="#"
-                                    className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover transition-colors"
+                                    href="/preferencias"
+                                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                                        pathname === '/preferencias'
+                                            ? 'bg-previa-accent/10 text-previa-accent font-semibold border border-previa-accent/20'
+                                            : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                                    }`}
                                 >
                                     <Settings className="w-4 h-4" />
                                     <span>Preferencias</span>
@@ -354,25 +344,22 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                     </div>
                 </nav>
 
-                {/* Daily sweep indicator — bottom of sidenav */}
+                {/* Daily sweep indicator */}
                 <div className="flex-shrink-0 border-t border-previa-border px-4 py-3 bg-previa-surface-hover/50">
                     <div className="flex items-center gap-1.5 mb-1">
                         <RefreshCw className="w-3 h-3 text-previa-muted" />
                         <span className="text-xs font-semibold text-previa-muted uppercase tracking-wider">
-                            Barrido diario SAT
+                            Análisis diario SAT
                         </span>
                     </div>
                     {sweepStatus?.last_completed_at ? (
                         <>
                             <div className="text-xs text-previa-ink">
                                 {new Date(sweepStatus.last_completed_at).toLocaleDateString(undefined, {
-                                    day: '2-digit',
-                                    month: 'short',
-                                    year: 'numeric',
+                                    day: '2-digit', month: 'short', year: 'numeric',
                                 })}{' '}
                                 {new Date(sweepStatus.last_completed_at).toLocaleTimeString(undefined, {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
+                                    hour: '2-digit', minute: '2-digit',
                                 })}
                             </div>
                             <div className="text-xs text-previa-muted mt-0.5">
@@ -380,12 +367,11 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                             </div>
                         </>
                     ) : (
-                        <div className="text-xs text-previa-muted">Sin barrido aún</div>
+                        <div className="text-xs text-previa-muted">Sin análisis aún</div>
                     )}
                 </div>
             </aside>
 
-            {/* Organization management modal */}
             {showOrgModal && (
                 <OrganizationModal
                     organizations={organizations}

@@ -1,6 +1,6 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { X } from '@/lib/icons'
 
 /**
  * Deterministically maps a tag string to a color class so the same tag always

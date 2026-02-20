@@ -22,7 +22,8 @@ from app.agent.tools.sat_69b_tool import screen_69b
 from app.agent.tools.sat_69_tool import screen_69
 from app.agent.tools.sat_69_bis_tool import screen_69_bis
 from app.agent.tools.sat_49_bis_tool import screen_49_bis
-from app.config.risk_rules import calculate_risk_score, Art69BStatus, Art69Category
+from app.agent.tools.sat_cert_checker import check_certificate, cert_expired_days
+from app.config.risk_rules import calculate_risk_score, Art69BStatus, Art69Category, CertificateStatus
 from app.data.db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,18 @@ async def lookup_rfc(
             categories=art_69_result.get("categories", []),
         )
 
-        cert_finding = CertificateFinding(checked=False)
+        cert_result = await check_certificate(rfc_upper)
+        cert_finding = CertificateFinding(
+            checked=cert_result.get("checked", False),
+            status=(
+                cert_result["status"].value
+                if cert_result.get("checked") and cert_result.get("status")
+                else None
+            ),
+            serial_number=cert_result.get("serial_number"),
+            valid_from=cert_result.get("valid_from"),
+            valid_to=cert_result.get("valid_to"),
+        )
 
         # Extract Art. 69 categories for risk scoring
         art_69_categories = []
@@ -102,10 +114,18 @@ async def lookup_rfc(
                     except ValueError:
                         logger.warning("Unknown Art. 69 category: %s", cat_type)
 
+        cert_status_enum = cert_result.get("status") if cert_result.get("checked") else None
+        cert_exp_days = (
+            cert_expired_days(cert_result.get("valid_to"))
+            if cert_status_enum == CertificateStatus.EXPIRED
+            else None
+        )
+
         findings = {
             "art_69b_status": art_69b_result.get("status", Art69BStatus.NOT_FOUND),
             "art_69_categories": art_69_categories,
-            "cert_status": None,
+            "cert_status": cert_status_enum,
+            "cert_expired_days": cert_exp_days,
         }
         risk_score, risk_level = calculate_risk_score(findings)
 

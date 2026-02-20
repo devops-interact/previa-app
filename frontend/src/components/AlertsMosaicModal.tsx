@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import {
     X, Search, SlidersHorizontal, ArrowUpDown,
     AlertTriangle, Filter, Bell,
-} from 'lucide-react'
+} from '@/lib/icons'
 import type { Alert, AlertSeverity } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ export function AlertsMosaicModal({ alerts, onClose, onSelectAlert }: AlertsMosa
                         <SlidersHorizontal className="w-3.5 h-3.5" />
                         <span>Filtros</span>
                         {activeFilterCount > 0 && (
-                            <span className="w-4 h-4 rounded-full bg-previa-accent text-white text-[10px] flex items-center justify-center font-bold">
+                            <span className="w-4 h-4 rounded-full bg-previa-accent text-black text-[10px] flex items-center justify-center font-bold">
                                 {activeFilterCount}
                             </span>
                         )}

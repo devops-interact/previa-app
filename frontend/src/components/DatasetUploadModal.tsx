@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
-import { X, Upload, FileSpreadsheet, CheckCircle2, Info, Building2 } from 'lucide-react'
+import { X, Upload, FileSpreadsheet, CheckCircle2, Info, Building2 } from '@/lib/icons'
 import { apiClient } from '@/lib/api-client'
 import type { ChatContext, Organization } from '@/types'
 
@@ -239,7 +239,7 @@ export function DatasetUploadModal({ isOpen, onClose, chatContext = {} }: Datase
                         <button
                             type="button"
                             onClick={handleSubmit}
-                            className="w-full py-2.5 bg-previa-accent text-white rounded-xl font-semibold text-sm hover:bg-previa-accent/90 transition-colors"
+                            className="w-full py-2.5 bg-previa-accent text-black rounded-xl font-semibold text-sm hover:bg-previa-accent/90 transition-colors"
                         >
                             Subir y verificar
                         </button>

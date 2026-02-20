@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, X } from 'lucide-react'
+import { AlertTriangle, X } from '@/lib/icons'
 import { useState } from 'react'
 import type { AlertSeverity } from '@/types'
 

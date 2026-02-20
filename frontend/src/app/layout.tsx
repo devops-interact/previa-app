@@ -1,6 +1,9 @@
 import type { Metadata } from "next"
 import { JetBrains_Mono } from "next/font/google"
 import "./globals.css"
+import "@fortawesome/fontawesome-svg-core/styles.css"
+import { config } from "@fortawesome/fontawesome-svg-core"
+config.autoAddCss = false
 import { UploadModalProvider } from "@/contexts/UploadModalContext"
 
 const jetbrainsMono = JetBrains_Mono({

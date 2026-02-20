@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User as UserIcon, Loader2, Upload, Plus, Building2 } from 'lucide-react'
+import { Send, Bot, User as UserIcon, Loader2, Upload, Plus, Building2 } from '@/lib/icons'
 import { Sidebar } from '@/components/Sidebar'
 import { AuthGuard } from '@/components/AuthGuard'
 import { useUploadModal } from '@/contexts/UploadModalContext'
@@ -92,8 +92,8 @@ export default function ChatPage() {
             <div className="flex h-screen bg-previa-background overflow-hidden">
                 <Sidebar onWatchlistSelect={handleWatchlistSelect} />
 
-                <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-                    {/* Header — responsive stack on mobile */}
+                <                main className="flex-1 flex flex-col overflow-hidden min-w-0">
+                    {/* Header */}
                     <header className="bg-previa-surface border-b border-previa-border px-4 py-3 sm:px-6 flex-shrink-0">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3 min-w-0">
@@ -208,7 +208,7 @@ export default function ChatPage() {
                                         )}
                                         <div
                                             className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
-                                                ? 'bg-previa-accent text-white rounded-tr-sm'
+                                                ? 'bg-previa-accent text-black rounded-tr-sm'
                                                 : 'bg-previa-surface border border-previa-border text-previa-ink rounded-tl-sm'
                                                 }`}
                                         >
@@ -269,7 +269,7 @@ export default function ChatPage() {
                                 <button
                                     type="submit"
                                     disabled={loading || !input.trim()}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl bg-previa-accent text-white disabled:opacity-30 disabled:bg-previa-muted hover:bg-previa-accent/90 transition-all"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl bg-previa-accent text-black disabled:opacity-30 disabled:bg-previa-muted hover:bg-previa-accent/90 transition-all"
                                 >
                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                 </button>
