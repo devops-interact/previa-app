@@ -1,35 +1,29 @@
 # =============================================================================
 # Previa App — Backend Dockerfile
-# Multi-stage build for production deployment
-# Compatible with Railway/Render
+# Production deployment with Gunicorn + Uvicorn workers
+# Compatible with Railway Pro / Enterprise
 # =============================================================================
 
-FROM python:3.11-slim as base
+FROM python:3.11-slim AS base
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+COPY alembic.ini .
+COPY alembic/ ./alembic/
 COPY app/ ./app/
 
-# Create data directory for SQLite (optional for Railway if using Postgres)
 RUN mkdir -p /app/data
 
-# Expose port (Railway sets PORT env var dynamically)
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import httpx; httpx.get('http://localhost:8000/api/health')"
 
-# Run application (Use shell form to expand $PORT)
-CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+CMD sh -c "alembic upgrade head 2>/dev/null || true && gunicorn app.main:app -w ${WEB_CONCURRENCY:-4} -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8000} --timeout 120 --graceful-timeout 30 --access-logfile -"

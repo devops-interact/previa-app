@@ -1,31 +1,39 @@
 """
 Previa App — FastAPI Application Entry Point
-Main application with CORS, rate limiting, JWT auth, and database initialization.
-
-Security hardening applied:
-- CORS restricted to explicit methods and headers (no wildcard).
-- Slowapi rate limiter applied to mutation endpoints.
-- JWT authentication required on all data endpoints (see deps.py).
-- Auth router registered at /api/auth/login.
+Production-ready application with CORS, per-user rate limiting, JWT auth,
+Sentry error tracking, and database initialization.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from app.config.settings import settings
-from app.data.db.session import init_db, apply_migrations
+from app.data.db.session import init_db
 from app.api.routes import health, scan, rfc
 from app.api.routes import auth as auth_router
 from app.api.routes import organizations as org_router
 from app.api.routes import chat as chat_router
 from app.api.routes import news as news_router
+from app.api.routes import billing as billing_router
+
+# ── Sentry (production error tracking) ────────────────────────────────────────
+
+if settings.sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        traces_sample_rate=0.1,
+        environment=settings.environment,
+    )
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -35,64 +43,71 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ── Rate Limiter ──────────────────────────────────────────────────────────────
+# ── Per-user rate limiting ────────────────────────────────────────────────────
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+def _get_user_or_ip(request: Request) -> str:
+    """Extract user_id from JWT for rate-limit keying; fall back to IP."""
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        try:
+            from jose import jwt as jose_jwt
+            payload = jose_jwt.decode(
+                auth[7:], settings.jwt_secret_key,
+                algorithms=[settings.jwt_algorithm],
+                options={"verify_exp": False},
+            )
+            uid = payload.get("user_id")
+            if uid:
+                return f"user:{uid}"
+        except Exception:
+            pass
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+limiter = Limiter(key_func=_get_user_or_ip, default_limits=["200/minute"])
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application lifespan manager.
-    Runs setup on startup and teardown on shutdown.
-    """
-    logger.info("Starting Previa App backend...")
+    logger.info("Starting Previa App backend (env=%s)...", ENVIRONMENT)
     logger.info("Database: %s", settings.sqlalchemy_database_url)
 
-    # Initialize database tables and apply idempotent column migrations
     await init_db()
-    await apply_migrations()
-    logger.info("Database initialized and migrations applied")
+    logger.info("Database tables ensured")
 
-    # Seed demo user (idempotent)
-    from app.data.db.session import AsyncSessionLocal
-    from app.data.db.models import User
-    from app.api.deps import hash_password
-    from sqlalchemy import select
+    # Seed demo user only in development
+    if ENVIRONMENT == "development":
+        from app.data.db.session import AsyncSessionLocal
+        from app.data.db.models import User
+        from app.api.deps import hash_password
+        from sqlalchemy import select
 
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(select(User).where(User.email == settings.demo_user_email))
-        existing_user = result.scalar_one_or_none()
-
-        if not existing_user:
-            demo_user = User(
-                email=settings.demo_user_email,
-                hashed_password=hash_password(settings.demo_user_password),
-                role=settings.demo_user_role,
-            )
-            db.add(demo_user)
-            await db.commit()
-            logger.info("Demo user created: %s", settings.demo_user_email)
-        else:
-            logger.info("Demo user already exists: %s", settings.demo_user_email)
-
-        # Ensure documented demo account exists (user@example.com / 1234) so login always works
-        default_demo_email = "user@example.com"
-        if default_demo_email != settings.demo_user_email:
-            r2 = await db.execute(select(User).where(User.email == default_demo_email))
-            if r2.scalar_one_or_none() is None:
-                extra_demo = User(
-                    email=default_demo_email,
+        async with AsyncSessionLocal() as db:
+            r = await db.execute(select(User).where(User.email == settings.demo_user_email))
+            if r.scalar_one_or_none() is None:
+                demo_user = User(
+                    email=settings.demo_user_email,
                     hashed_password=hash_password(settings.demo_user_password),
+                    full_name="Demo User",
                     role=settings.demo_user_role,
+                    plan="company",
                 )
-                db.add(extra_demo)
+                db.add(demo_user)
                 await db.commit()
-                logger.info("Demo user created: %s (documented credentials)", default_demo_email)
+                logger.info("Demo user created: %s", settings.demo_user_email)
+            else:
+                logger.info("Demo user already exists: %s", settings.demo_user_email)
 
-    # Seed SATDataset sentinel rows so ingestion_job can update freshness.
+    # Seed SATDataset sentinel rows
+    from app.data.db.session import AsyncSessionLocal
     from app.data.db.models import SATDataset
+    from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
         for ds_name in ("lista_69b", "art69_creditos_firmes", "art69_no_localizados",
@@ -103,10 +118,9 @@ async def lifespan(app: FastAPI):
         await db.commit()
         logger.info("SAT dataset sentinel rows ensured")
 
-    # Scheduler owns daily SAT ingestion + sweep (first run 30s after startup).
     from app.scheduler import start_scheduler, shutdown_scheduler
     from app.agent.tools.constitution import ConstitutionIngester
-    import os
+    import asyncio
 
     start_scheduler()
 
@@ -114,12 +128,10 @@ async def lifespan(app: FastAPI):
         os.path.join(ConstitutionIngester.DATA_DIR, ConstitutionIngester.OUTPUT_FILE)
     ):
         logger.info("Constitution data not found — triggering initial ingestion...")
-        import asyncio
         asyncio.create_task(ConstitutionIngester.process())
 
     yield
 
-    # Shutdown
     logger.info("Shutting down Previa App backend...")
     await shutdown_scheduler()
 
@@ -133,12 +145,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Attach rate limiter state and error handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# ── CORS (hardened) ───────────────────────────────────────────────────────────
-# Wildcard methods/headers removed — only what the frontend actually needs.
+# ── CORS ──────────────────────────────────────────────────────────────────────
 
 app.add_middleware(
     CORSMiddleware,
@@ -157,12 +167,11 @@ app.include_router(rfc.router, prefix="/api", tags=["RFC"])
 app.include_router(org_router.router, prefix="/api", tags=["Organizations"])
 app.include_router(chat_router.router, prefix="/api", tags=["Chat"])
 app.include_router(news_router.router, prefix="/api", tags=["News"])
+app.include_router(billing_router.router, prefix="/api", tags=["Billing"])
 
-# ── Root ──────────────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
-    """Root health/identity endpoint (public)."""
     return {
         "app": settings.app_name,
         "version": settings.app_version,
@@ -172,5 +181,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

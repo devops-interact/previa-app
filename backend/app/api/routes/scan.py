@@ -12,16 +12,17 @@ import uuid
 import logging
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, enforce_company_limit, verify_org_ownership
 from app.data.db.session import get_db
 from app.data.db.models import ScanJob, Entity, Organization, Watchlist, WatchlistCompany, ScreeningResult
 from app.api.schemas import ScanCreateResponse, ScanStatusResponse, ScanResultsResponse, EntityResult
 from app.data.ingest.file_parser import parse_upload_file
 from app.agent.orchestrator import process_scan
+from app.tasks.scan_tasks import dispatch_scan
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -182,7 +183,7 @@ async def create_scan(
         await db.commit()
         logger.info("Created scan job %s with %d entities", scan_id, len(entities_data))
 
-        background_tasks.add_task(process_scan, scan_id)
+        background_tasks.add_task(dispatch_scan, scan_id)
 
         return ScanCreateResponse(
             scan_id=scan_id,
@@ -255,34 +256,42 @@ async def download_report(
     raise HTTPException(status_code=501, detail="Report generation not implemented yet")
 
 
-@router.get("/scan/{scan_id}/results", response_model=ScanResultsResponse)
+@router.get("/scan/{scan_id}/results")
 async def get_scan_results(
     scan_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dict, Depends(get_current_user)],
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
 ):
     """
-    Return per-entity screening results for a scan job.
+    Return per-entity screening results for a scan job (paginated).
     Available while the scan is in progress (partial) and after completion.
-
-    Requires: Authorization: Bearer <token>
     """
     result = await db.execute(select(ScanJob).where(ScanJob.scan_id == scan_id))
     scan_job = result.scalar_one_or_none()
     if not scan_job:
         raise HTTPException(status_code=404, detail="Scan not found")
 
-    # Fetch all entities for this scan
+    total = (await db.execute(
+        select(func.count()).select_from(Entity).where(Entity.scan_job_id == scan_job.id)
+    )).scalar() or 0
+
     ent_result = await db.execute(
-        select(Entity).where(Entity.scan_job_id == scan_job.id)
+        select(Entity)
+        .where(Entity.scan_job_id == scan_job.id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
     entities = ent_result.scalars().all()
+    entity_ids = [e.id for e in entities]
 
-    # Build a map of entity_id → ScreeningResult
-    res_result = await db.execute(
-        select(ScreeningResult).where(ScreeningResult.scan_job_id == scan_job.id)
-    )
-    screening_map = {sr.entity_id: sr for sr in res_result.scalars().all()}
+    screening_map = {}
+    if entity_ids:
+        res_result = await db.execute(
+            select(ScreeningResult).where(ScreeningResult.entity_id.in_(entity_ids))
+        )
+        screening_map = {sr.entity_id: sr for sr in res_result.scalars().all()}
 
     entity_results = []
     for entity in entities:
@@ -310,10 +319,15 @@ async def get_scan_results(
             )
         )
 
-    return ScanResultsResponse(
-        scan_id=scan_job.scan_id,
-        status=scan_job.status,
-        total_entities=scan_job.total_entities,
-        processed_entities=scan_job.processed_entities,
-        results=entity_results,
-    )
+    return {
+        "scan_id": scan_job.scan_id,
+        "status": scan_job.status,
+        "total_entities": scan_job.total_entities,
+        "processed_entities": scan_job.processed_entities,
+        "results": {
+            "items": [r.model_dump() if hasattr(r, "model_dump") else r.dict() for r in entity_results],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        },
+    }

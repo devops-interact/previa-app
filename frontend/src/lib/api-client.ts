@@ -50,6 +50,7 @@ export interface AuthPayload {
     access_token: string
     email: string
     role: string
+    plan?: string
 }
 
 class APIClient {
@@ -107,6 +108,26 @@ class APIClient {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
+        })
+
+        if (!response.ok) {
+            const detail = await this.extractError(response)
+            throw new Error(detail)
+        }
+
+        return response.json() as Promise<AuthPayload>
+    }
+
+    async register(data: {
+        email: string
+        password: string
+        full_name: string
+        organization_name?: string
+    }): Promise<AuthPayload> {
+        const response = await fetch(`${this.baseURL}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
         })
 
         if (!response.ok) {

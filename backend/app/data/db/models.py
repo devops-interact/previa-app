@@ -12,16 +12,23 @@ Base = declarative_base()
 
 
 class User(Base):
-    """User accounts (demo + future multi-tenant)."""
+    """User accounts with subscription plan tracking."""
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    full_name = Column(String, nullable=True)
     role = Column(String, default="analyst")  # analyst, admin, auditor
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
-    
+
+    # Subscription
+    plan = Column(String, default="free")  # free, basic, premium, company
+    stripe_customer_id = Column(String, nullable=True, unique=True, index=True)
+    stripe_subscription_id = Column(String, nullable=True)
+    plan_expires_at = Column(DateTime, nullable=True)
+
     # Relationships
     organizations = relationship("Organization", back_populates="user", cascade="all, delete-orphan")
 
@@ -79,6 +86,10 @@ class WatchlistCompany(Base):
 
     # Relationships
     watchlist = relationship("Watchlist", back_populates="companies")
+
+    __table_args__ = (
+        Index("ix_wc_watchlist_rfc", "watchlist_id", "rfc"),
+    )
 
 
 class ScanJob(Base):
@@ -227,6 +238,7 @@ class PublicNotice(Base):
 
     __table_args__ = (
         Index("ix_pn_dedup", "source", "rfc", "article_type", "status", unique=False),
+        Index("ix_pn_rfc_article", "rfc", "article_type"),
     )
 
 
@@ -249,3 +261,7 @@ class CompanyNews(Base):
     indexed_at = Column(DateTime, default=datetime.utcnow)
     # Optional: link to watchlist for scoping
     watchlist_id = Column(Integer, ForeignKey("watchlists.id"), nullable=True, index=True)
+
+    __table_args__ = (
+        Index("ix_cn_rfc_published", "rfc", "published_at"),
+    )

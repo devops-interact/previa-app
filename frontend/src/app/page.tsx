@@ -25,8 +25,8 @@ export default function HomePage() {
             // Authenticate against the backend — receives a signed JWT
             const auth = await apiClient.login(email.trim(), password)
 
-            // Persist the token for subsequent API calls (read by api-client.ts)
             localStorage.setItem('previa_auth', JSON.stringify(auth))
+            document.cookie = `previa_token=${auth.access_token}; path=/; max-age=${60 * 60 * 8}; SameSite=Lax`
 
             router.push('/tablero')
         } catch (err: unknown) {
