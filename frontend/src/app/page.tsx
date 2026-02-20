@@ -48,7 +48,7 @@ export default function HomePage() {
                     <div className="bg-previa-surface/80 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-previa-border p-8">
                         {/* Branding */}
                         <div className="text-center mb-8">
-                            <h1 className="text-4xl font-bold text-previa-accent mb-2 tracking-tight">
+                            <h1 className="text-4xl font-bold text-previa-ink mb-2 tracking-tight">
                                 Previa App
                             </h1>
                             <p className="text-previa-muted text-sm">
@@ -111,7 +111,7 @@ export default function HomePage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-previa-accent text-black py-3 rounded-lg hover:bg-previa-accent-glow transition-colors font-semibold shadow-lg shadow-previa-accent/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full border border-previa-border bg-transparent text-previa-ink py-3 rounded-lg hover:bg-previa-surface-hover hover:border-previa-accent/50 transition-colors font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {loading && (
                                     <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -124,7 +124,7 @@ export default function HomePage() {
                         <div className="mt-5">
                             <button
                                 onClick={() => setShowDemo(!showDemo)}
-                                className="text-xs text-previa-muted hover:text-previa-accent-glow transition-colors w-full text-center"
+                                className="text-xs text-previa-muted hover:text-previa-accent transition-colors w-full text-center"
                             >
                                 {showDemo ? 'Ocultar cuenta demo' : 'Mostrar cuenta demo'}
                             </button>
@@ -139,7 +139,7 @@ export default function HomePage() {
                         <div className="mt-6 text-center">
                             <p className="text-sm text-previa-muted">
                                 ¿No tienes una cuenta?{' '}
-                                <Link href="/register" className="text-previa-accent font-semibold hover:text-previa-accent-glow transition-colors">
+                                <Link href="/register" className="text-previa-accent font-semibold hover:text-previa-accent-glow transition-colors underline underline-offset-2">
                                     Crear Cuenta
                                 </Link>
                             </p>

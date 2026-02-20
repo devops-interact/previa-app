@@ -236,7 +236,7 @@ export function OrganizationModal({
                             <button
                                 onClick={handleCreate}
                                 disabled={loading}
-                                className="w-full bg-previa-accent text-black py-2.5 rounded-xl text-sm font-semibold hover:bg-previa-accent/90 transition-colors disabled:opacity-50"
+                                className="w-full border border-previa-border bg-transparent text-previa-ink py-2.5 rounded-xl text-sm font-semibold hover:bg-previa-surface-hover hover:border-previa-accent/50 transition-colors disabled:opacity-50"
                             >
                                 {loading ? 'Creando...' : 'Crear Organización'}
                             </button>

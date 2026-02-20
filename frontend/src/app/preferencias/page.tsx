@@ -121,12 +121,12 @@ export default function PreferenciasPage() {
                                 <div className="flex items-center gap-4 mb-6">
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="relative w-16 h-16 rounded-full bg-previa-accent/20 border-2 border-previa-border hover:border-previa-accent/40 transition-colors flex items-center justify-center overflow-hidden group"
+                                        className="relative w-16 h-16 rounded-full bg-previa-surface-hover border-2 border-previa-border hover:border-previa-accent/50 transition-colors flex items-center justify-center overflow-hidden group"
                                     >
                                         {profile.avatar ? (
                                             <img src={profile.avatar} alt="Avatar" className="w-full h-full object-cover" />
                                         ) : (
-                                            <span className="text-2xl font-bold text-previa-accent">
+                                            <span className="text-2xl font-bold text-previa-ink">
                                                 {profile.username?.charAt(0).toUpperCase() || 'U'}
                                             </span>
                                         )}
@@ -172,7 +172,7 @@ export default function PreferenciasPage() {
 
                                 <button
                                     onClick={handleSaveProfile}
-                                    className="flex items-center gap-1.5 px-4 py-2 text-xs bg-previa-accent text-black font-medium rounded-lg hover:bg-previa-accent/90 transition-colors"
+                                    className="flex items-center gap-1.5 px-4 py-2 text-xs border border-previa-border bg-transparent text-previa-ink font-medium rounded-lg hover:bg-previa-surface-hover hover:border-previa-accent/50 transition-colors"
                                 >
                                     <Save className="w-3.5 h-3.5" />
                                     <span>{saved ? 'Guardado' : 'Guardar cambios'}</span>

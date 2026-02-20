@@ -85,7 +85,7 @@ export default function RegisterPage() {
             <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-8">
                 <div className="max-w-md w-full">
                     <div className="text-center mb-8">
-                        <h1 className="text-4xl font-bold text-previa-accent mb-2 tracking-tight">
+                        <h1 className="text-4xl font-bold text-previa-ink mb-2 tracking-tight">
                             Previa App
                         </h1>
                         <p className="text-previa-muted text-sm">
@@ -131,7 +131,7 @@ export default function RegisterPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-previa-accent text-black py-3 rounded-lg font-semibold hover:bg-previa-accent-glow transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-previa-accent/20 flex items-center justify-center gap-2"
+                                className="w-full border border-previa-border bg-transparent text-previa-ink py-3 rounded-lg font-semibold hover:bg-previa-surface-hover hover:border-previa-accent/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {loading && <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                                 {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
@@ -141,7 +141,7 @@ export default function RegisterPage() {
                         <div className="mt-6 text-center">
                             <p className="text-sm text-previa-muted">
                                 ¿Ya tienes una cuenta?{' '}
-                                <Link href="/" className="text-previa-accent font-semibold hover:text-previa-accent-glow transition-colors">
+                                <Link href="/" className="text-previa-accent font-semibold hover:text-previa-accent-glow transition-colors underline underline-offset-2">
                                     Iniciar Sesión
                                 </Link>
                             </p>

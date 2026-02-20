@@ -346,7 +346,7 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
             <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="lg:hidden fixed bottom-20 right-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl bg-previa-accent text-black shadow-lg shadow-previa-accent/25 hover:bg-previa-accent/90 active:scale-95 transition-all"
+                className="lg:hidden fixed bottom-20 right-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl border border-previa-border bg-previa-surface text-previa-ink shadow-lg hover:bg-previa-surface-hover hover:border-previa-accent/50 active:scale-95 transition-all"
                 aria-label="Abrir agente fiscal"
             >
                 <Bot className="w-5 h-5" />
@@ -471,7 +471,7 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
                             )}
                             <div
                                 className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${msg.role === 'user'
-                                    ? 'bg-previa-accent text-black rounded-tr-sm'
+                                    ? 'border border-previa-accent/60 bg-previa-surface text-previa-ink rounded-tr-sm'
                                     : 'bg-previa-background border border-previa-border text-previa-ink rounded-tl-sm'
                                     }`}
                             >

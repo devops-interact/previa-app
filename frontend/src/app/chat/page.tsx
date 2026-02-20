@@ -208,7 +208,7 @@ export default function ChatPage() {
                                         )}
                                         <div
                                             className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
-                                                ? 'bg-previa-accent text-black rounded-tr-sm'
+                                                ? 'border border-previa-accent/60 bg-previa-surface text-previa-ink rounded-tr-sm'
                                                 : 'bg-previa-surface border border-previa-border text-previa-ink rounded-tl-sm'
                                                 }`}
                                         >
@@ -269,7 +269,7 @@ export default function ChatPage() {
                                 <button
                                     type="submit"
                                     disabled={loading || !input.trim()}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl bg-previa-accent text-black disabled:opacity-30 disabled:bg-previa-muted hover:bg-previa-accent/90 transition-all"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl border border-previa-border bg-previa-surface text-previa-ink disabled:opacity-30 hover:bg-previa-surface-hover hover:border-previa-accent/50 transition-all"
                                 >
                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                 </button>

@@ -239,7 +239,7 @@ export function DatasetUploadModal({ isOpen, onClose, chatContext = {} }: Datase
                         <button
                             type="button"
                             onClick={handleSubmit}
-                            className="w-full py-2.5 bg-previa-accent text-black rounded-xl font-semibold text-sm hover:bg-previa-accent/90 transition-colors"
+                            className="w-full py-2.5 border border-previa-border bg-transparent text-previa-ink rounded-xl font-semibold text-sm hover:bg-previa-surface-hover hover:border-previa-accent/50 transition-colors"
                         >
                             Subir y verificar
                         </button>

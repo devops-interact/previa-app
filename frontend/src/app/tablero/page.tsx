@@ -225,7 +225,7 @@ export default function TableroPage() {
                                     <span className="text-xs text-previa-muted">{Math.round(scanProgress.pct)}%</span>
                                 </div>
                                 <div className="h-1.5 bg-previa-background rounded-full overflow-hidden">
-                                    <div className="h-full bg-previa-accent rounded-full transition-all duration-500" style={{ width: `${scanProgress.pct}%` }} />
+                                    <div className="h-full bg-previa-accent/60 rounded-full transition-all duration-500" style={{ width: `${scanProgress.pct}%` }} />
                                 </div>
                                 <p className="text-xs text-previa-muted mt-1 capitalize">{scanProgress.status}</p>
                             </div>
@@ -328,7 +328,7 @@ export default function TableroPage() {
                                     </p>
                                     <button
                                         onClick={() => openUploadModal(chatContext)}
-                                        className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-previa-accent text-black text-sm font-medium rounded-lg hover:bg-previa-accent/90 transition-colors"
+                                        className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 border border-previa-border bg-transparent text-previa-ink text-sm font-medium rounded-lg hover:bg-previa-surface-hover hover:border-previa-accent/50 transition-colors"
                                     >
                                         <Upload className="w-4 h-4" />
                                         <span>Subir dataset</span>

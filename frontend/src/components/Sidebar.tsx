@@ -133,7 +133,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
             <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="md:hidden fixed bottom-5 left-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl bg-previa-accent text-black shadow-lg shadow-previa-accent/25 hover:bg-previa-accent/90 active:scale-95 transition-all"
+                className="md:hidden fixed bottom-5 left-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl border border-previa-border bg-previa-surface text-previa-ink shadow-lg hover:bg-previa-surface-hover hover:border-previa-accent/50 active:scale-95 transition-all"
                 aria-label="Abrir menú"
             >
                 <Menu className="w-5 h-5" />
