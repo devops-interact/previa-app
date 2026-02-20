@@ -107,11 +107,12 @@ async def process_entity(entity: Entity, scan_job: ScanJob, db: AsyncSession):
         logger.warning(f"Invalid RFC {entity.rfc}: {validation['errors']}")
         # Still process, but note the validation issue
     
-    # Screen all articles
-    art_69b_result = await screen_69b(entity.rfc, db)
-    art_69_result = await screen_69(entity.rfc, db)
-    art_69_bis_result = await screen_69_bis(entity.rfc, db)
-    art_49_bis_result = await screen_49_bis(entity.rfc, db)
+    # Screen all articles (pass razon_social for name-based fallback)
+    name = getattr(entity, "razon_social", None)
+    art_69b_result = await screen_69b(entity.rfc, db, razon_social=name)
+    art_69_result = await screen_69(entity.rfc, db, razon_social=name)
+    art_69_bis_result = await screen_69_bis(entity.rfc, db, razon_social=name)
+    art_49_bis_result = await screen_49_bis(entity.rfc, db, razon_social=name)
     
     # TODO: Check certificate status
     

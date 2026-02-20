@@ -2,10 +2,11 @@
 Previa App — Article 69-B Screening Tool
 Screen RFCs against SAT's Article 69-B lists (EFOS/EDOS).
 Uses indexed data from DOF (dof.gob.mx) and SAT Datos Abiertos; falls back to mock for demo RFCs.
+Supports search by razon_social (company name) as fallback when RFC is not found.
 """
 
 import logging
-from typing import Dict
+from typing import Dict, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +15,6 @@ from app.data.db.models import PublicNotice
 
 logger = logging.getLogger(__name__)
 
-# Demo RFCs with known 69-B findings (used until real SAT dataset is indexed)
 _MOCK_69B: Dict[str, Dict] = {
     "CAL080328S18": {
         "found": True,
@@ -78,29 +78,49 @@ def _notice_to_69b_result(notice) -> Dict:
     }
 
 
-async def screen_69b(rfc: str, db: AsyncSession) -> Dict:
+async def screen_69b(
+    rfc: str,
+    db: AsyncSession,
+    razon_social: Optional[str] = None,
+) -> Dict:
     """
-    Screen an RFC against Article 69-B lists (EFOS/EDOS).
-    First queries indexed PublicNotice (DOF + SAT Datos Abiertos); then falls back to mock.
+    Screen against Article 69-B lists (EFOS/EDOS).
+    Queries by RFC first; falls back to razon_social (ILIKE) when provided.
     """
-    rfc_upper = rfc.strip().upper()
+    rfc_upper = rfc.strip().upper() if rfc else ""
 
-    # 1) Query indexed public data (DOF, SAT Datos Abiertos)
-    result = await db.execute(
-        select(PublicNotice)
-        .where(PublicNotice.rfc == rfc_upper, PublicNotice.article_type == "art_69b")
-        .order_by(PublicNotice.indexed_at.desc())
-        .limit(1)
-    )
-    row = result.scalar_one_or_none()
-    if row:
-        logger.info("RFC %s found in indexed Art. 69-B data (source=%s)", rfc, row.source)
-        return _notice_to_69b_result(row)
+    if rfc_upper:
+        result = await db.execute(
+            select(PublicNotice)
+            .where(PublicNotice.rfc == rfc_upper, PublicNotice.article_type == "art_69b")
+            .order_by(PublicNotice.indexed_at.desc())
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        if row:
+            logger.info("RFC %s found in indexed Art. 69-B data (source=%s)", rfc, row.source)
+            return _notice_to_69b_result(row)
 
-    # 2) Fall back to mock for demo RFCs
-    if rfc_upper in _MOCK_69B:
+    if razon_social and not rfc_upper or (razon_social and rfc_upper):
+        name = razon_social.strip()
+        if name:
+            result = await db.execute(
+                select(PublicNotice)
+                .where(
+                    PublicNotice.razon_social.ilike(f"%{name}%"),
+                    PublicNotice.article_type == "art_69b",
+                )
+                .order_by(PublicNotice.indexed_at.desc())
+                .limit(1)
+            )
+            row = result.scalar_one_or_none()
+            if row:
+                logger.info("Company '%s' found in indexed Art. 69-B data by name", name)
+                return _notice_to_69b_result(row)
+
+    if rfc_upper and rfc_upper in _MOCK_69B:
         logger.info("RFC %s found in Art. 69-B mock data", rfc)
         return _MOCK_69B[rfc_upper]
 
-    logger.info("RFC %s not found in Art. 69-B lists", rfc)
+    logger.info("RFC %s / name '%s' not found in Art. 69-B lists", rfc, razon_social or "")
     return {"found": False, "status": Art69BStatus.NOT_FOUND, "razon_social": None}

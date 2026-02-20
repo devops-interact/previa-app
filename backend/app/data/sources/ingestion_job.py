@@ -14,6 +14,8 @@ from app.data.db.session import AsyncSessionLocal
 from app.data.db.models import PublicNotice, SATDataset, SweepMetadata
 from app.data.sources.dof_fetcher import DOFFetcher
 from app.data.sources.sat_datos_abiertos_fetcher import SATDatosAbiertosFetcher
+from app.data.sources.gaceta_fetcher import GacetaDiputadosFetcher
+from app.data.sources.leyes_federales_fetcher import LeyesFederalesFetcher
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,17 @@ async def run_ingestion(
                 logger.info("DOF: %d notices fetched", len(dof_notices))
                 await _replace_source(db, "dof", dof_notices, now)
                 await _update_sat_dataset(db, "lista_69b")
+
+                # ── Gaceta Parlamentaria ─────────────────────────────────────
+                gaceta_notices = await GacetaDiputadosFetcher.run(days_back=30, limit=50)
+                logger.info("Gaceta: %d notices fetched", len(gaceta_notices))
+                await _replace_source(db, "gaceta_diputados", gaceta_notices, now)
+
+                # ── Leyes Federales ──────────────────────────────────────────
+                leyes_notices = await LeyesFederalesFetcher.run(reform_lookback_days=90)
+                logger.info("LeyesFederales: %d notices fetched", len(leyes_notices))
+                await _replace_source(db, "leyes_federales", leyes_notices, now)
+
                 # Clear SAT so we replace with batch 0
                 await db.execute(delete(PublicNotice).where(PublicNotice.source == "sat_datos_abiertos"))
                 await db.flush()

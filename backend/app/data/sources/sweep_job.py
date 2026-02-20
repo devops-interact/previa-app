@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from sqlalchemy import select, distinct
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.data.db.session import AsyncSessionLocal
@@ -24,40 +24,55 @@ logger = logging.getLogger(__name__)
 
 async def sweep_watchlist_companies():
     """
-    For every unique RFC in watchlist_companies:
-      1. Query PublicNotice for all article types
+    For every unique (RFC, razon_social) in watchlist_companies:
+      1. Query PublicNotice for all article types (RFC first, name fallback)
       2. Compute risk score
       3. Update compliance fields on all WatchlistCompany rows sharing that RFC
-      4. Log changes (RFC went from CLEAR → CRITICAL, etc.)
+      4. Log changes (RFC went from CLEAR -> CRITICAL, etc.)
     """
     logger.info("Starting watchlist compliance sweep...")
     async with AsyncSessionLocal() as db:
         try:
             rfc_result = await db.execute(
-                select(distinct(WatchlistCompany.rfc))
+                select(WatchlistCompany.rfc, WatchlistCompany.razon_social).distinct()
             )
-            rfcs = [row[0] for row in rfc_result.all() if row[0]]
-            logger.info("Sweep: %d unique RFCs to check", len(rfcs))
+            companies = [(row.rfc, row.razon_social) for row in rfc_result.all() if row.rfc]
+            logger.info("Sweep: %d unique RFCs to check", len(companies))
 
             changes = 0
             now = datetime.utcnow()
 
-            for rfc in rfcs:
-                findings = await _screen_rfc_against_notices(db, rfc)
+            for rfc, razon in companies:
+                findings = await _screen_rfc_against_notices(db, rfc, razon_social=razon)
                 updated = await _update_companies(db, rfc, findings, now)
                 changes += updated
 
             await db.commit()
-            logger.info("Sweep completed — %d company records updated across %d RFCs", changes, len(rfcs))
+            logger.info("Sweep completed — %d company records updated across %d RFCs", changes, len(companies))
         except Exception as e:
             await db.rollback()
             logger.exception("Sweep failed: %s", e)
             raise
 
 
-async def _screen_rfc_against_notices(db: AsyncSession, rfc: str) -> Dict:
-    """Query PublicNotice for all article types and assemble findings dict."""
+async def _screen_rfc_against_notices(
+    db: AsyncSession, rfc: str, razon_social: Optional[str] = None,
+) -> Dict:
+    """Query PublicNotice for all article types; try RFC first, then razon_social fallback."""
     rfc_upper = rfc.strip().upper()
+
+    def _name_filter(article_type: str):
+        """Build a razon_social ILIKE query for fallback."""
+        if not razon_social or not razon_social.strip():
+            return None
+        return (
+            select(PublicNotice)
+            .where(
+                PublicNotice.razon_social.ilike(f"%{razon_social.strip()}%"),
+                PublicNotice.article_type == article_type,
+            )
+            .order_by(PublicNotice.indexed_at.desc())
+        )
 
     # Art. 69-B
     art_69b_status = Art69BStatus.NOT_FOUND
@@ -68,6 +83,10 @@ async def _screen_rfc_against_notices(db: AsyncSession, rfc: str) -> Dict:
         .limit(1)
     )
     row_69b = r69b.scalar_one_or_none()
+    if not row_69b:
+        q = _name_filter("art_69b")
+        if q is not None:
+            row_69b = (await db.execute(q.limit(1))).scalar_one_or_none()
     if row_69b:
         raw = (row_69b.status or "").strip().lower()
         try:
@@ -81,7 +100,12 @@ async def _screen_rfc_against_notices(db: AsyncSession, rfc: str) -> Dict:
         select(PublicNotice)
         .where(PublicNotice.rfc == rfc_upper, PublicNotice.article_type == "art_69")
     )
-    for row in r69.scalars().all():
+    rows_69 = r69.scalars().all()
+    if not rows_69:
+        q = _name_filter("art_69")
+        if q is not None:
+            rows_69 = (await db.execute(q)).scalars().all()
+    for row in rows_69:
         cat_raw = (row.category or row.status or "").strip().lower()
         if cat_raw and cat_raw not in art_69_cats:
             art_69_cats.append(cat_raw)
@@ -93,6 +117,10 @@ async def _screen_rfc_against_notices(db: AsyncSession, rfc: str) -> Dict:
         .limit(1)
     )
     art_69_bis_found = r69bis.scalar_one_or_none() is not None
+    if not art_69_bis_found:
+        q = _name_filter("art_69_bis")
+        if q is not None:
+            art_69_bis_found = (await db.execute(q.limit(1))).scalar_one_or_none() is not None
 
     # Art. 49 BIS
     r49 = await db.execute(
@@ -101,6 +129,10 @@ async def _screen_rfc_against_notices(db: AsyncSession, rfc: str) -> Dict:
         .limit(1)
     )
     art_49_bis_found = r49.scalar_one_or_none() is not None
+    if not art_49_bis_found:
+        q = _name_filter("art_49_bis")
+        if q is not None:
+            art_49_bis_found = (await db.execute(q.limit(1))).scalar_one_or_none() is not None
 
     # Resolve Art. 69 category enums for risk calculation
     art_69_enums = []

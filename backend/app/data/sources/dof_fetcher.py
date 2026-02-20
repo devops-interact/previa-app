@@ -1,13 +1,20 @@
 """
 Previa App — DOF (Diario Oficial de la Federación) fetcher.
-Fetches https://dof.gob.mx/ and edition pages (index.php?year=...&month=...&day=...&edicion=MAT)
-for SAT/SHCP-related notices to index for alert generation.
+Fetches https://dof.gob.mx/ and edition pages (MAT + SUP) for SAT/SHCP-related
+notices to index for alert generation.
+
+Improvements over v1:
+- Parses HTML tables from detail pages to extract (RFC, razon_social) pairs
+- Classifies article_type from notice title (69-B, 69, 69-B Bis, 49 BIS)
+- Extracts status (presunto, definitivo, desvirtuado, etc.) from title
+- Fetches both MAT and SUP editions
+- Default lookback: 30 days
 """
 
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 import httpx
 from bs4 import BeautifulSoup
 
@@ -25,15 +32,78 @@ _BROWSER_HEADERS = {
 
 DOF_BASE = "https://www.dof.gob.mx"
 DOF_INDEX = "https://www.dof.gob.mx/index.php"
-# Edition URL: index.php?year=2025&month=11&day=21&edicion=MAT
 DOF_EDITION_TEMPLATE = "https://www.dof.gob.mx/index.php?year={year}&month={month}&day={day}&edicion={edicion}"
-# Nota detail URL pattern: nota_detalle.php?codigo=XXXXXXX&fecha=DD/MM/YYYY
 NOTA_PATTERN = re.compile(r"nota_detalle\.php\?codigo=(\d+)&(?:amp;)?fecha=([\d/]+)", re.I)
-# RFC pattern (13 chars: 3-4 letters, 6 digits, 3 alphanum)
 RFC_PATTERN = re.compile(r"\b([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})\b")
-# Keywords that suggest SAT/69-B/EFOS content
-SAT_KEYWORDS = ("SAT", "69-B", "69 BIS", "EFOS", "operaciones presuntamente inexistentes",
-                "contribuyentes publicados", "artículo 69", "artículo 69-B", "SHCP", "Hacienda")
+
+SAT_KEYWORDS = (
+    "SAT", "69-B", "69 BIS", "EFOS", "operaciones presuntamente inexistentes",
+    "contribuyentes publicados", "artículo 69", "artículo 69-B", "SHCP", "Hacienda",
+    "incumplido", "no localizado", "crédito fiscal", "pérdidas fiscales",
+    "49 bis", "facturación", "operaciones simuladas", "sello digital",
+)
+
+# Edition types to fetch (MAT = matutina, SUP = suplemento)
+DOF_EDITIONS = ("MAT", "SUP")
+
+# ── Article type + status classification from notice titles ──────────────────
+
+_ARTICLE_RULES: List[Tuple[str, str, Optional[str]]] = [
+    # Art 69-B Bis (must come before 69-B to avoid false match)
+    ("69-b bis",                "art_69_bis",  None),
+    ("69 b bis",                "art_69_bis",  None),
+    ("pérdidas fiscales",       "art_69_bis",  None),
+    # Art 69-B
+    ("69-b",                    "art_69b",     None),
+    ("efos",                    "art_69b",     None),
+    ("operaciones presuntamente inexistentes", "art_69b", None),
+    ("operaciones simuladas",   "art_69b",     None),
+    ("operaciones inexistentes","art_69b",     None),
+    # Art 49 BIS
+    ("49 bis",                  "art_49_bis",  None),
+    ("49-bis",                  "art_49_bis",  None),
+    # Art 69 (generic)
+    ("artículo 69",             "art_69",      None),
+    ("contribuyentes incumplidos", "art_69",   None),
+    ("no localizado",           "art_69",      "no_localizado"),
+    ("crédito fiscal firme",    "art_69",      "credito_firme"),
+    ("créditos fiscales",       "art_69",      "credito_firme"),
+    ("sello digital",           "art_69",      "csd_sin_efectos"),
+]
+
+_STATUS_HINTS: List[Tuple[str, str]] = [
+    ("presunto",                "presunto"),
+    ("definitivo",              "definitivo"),
+    ("desvirtuado",             "desvirtuado"),
+    ("sentencia favorable",     "sentencia_favorable"),
+    ("sentencias favorable",    "sentencia_favorable"),
+    ("sentencia condenatoria",  "sentencia_condenatoria"),
+    ("no localizado",           "no_localizado"),
+    ("cancelado",               "credito_cancelado"),
+    ("firme",                   "credito_firme"),
+]
+
+
+def _classify_notice(title: str) -> Tuple[str, Optional[str]]:
+    """Return (article_type, status) based on notice title keywords."""
+    t = title.lower()
+    article_type = "art_69b"  # DOF SAT notices are most commonly 69-B
+    status: Optional[str] = None
+
+    for keyword, art, st in _ARTICLE_RULES:
+        if keyword in t:
+            article_type = art
+            if st:
+                status = st
+            break
+
+    if status is None:
+        for keyword, st in _STATUS_HINTS:
+            if keyword in t:
+                status = st
+                break
+
+    return article_type, status
 
 
 class DOFFetcher:
@@ -41,7 +111,6 @@ class DOFFetcher:
 
     @classmethod
     async def fetch_index(cls) -> str:
-        """Fetch DOF index/main page HTML."""
         async with httpx.AsyncClient(
             follow_redirects=True, timeout=30.0, verify=False, headers=_BROWSER_HEADERS
         ) as client:
@@ -50,8 +119,7 @@ class DOFFetcher:
             return resp.text
 
     @classmethod
-    async def fetch_edition(cls, year: int, month: int, day: int, edicion: str = "MAT") -> str | None:
-        """Fetch a specific DOF edition page (e.g. index.php?year=2025&month=11&day=21&edicion=MAT)."""
+    async def fetch_edition(cls, year: int, month: int, day: int, edicion: str = "MAT") -> Optional[str]:
         url = DOF_EDITION_TEMPLATE.format(year=year, month=month, day=day, edicion=edicion)
         try:
             async with httpx.AsyncClient(
@@ -61,12 +129,11 @@ class DOFFetcher:
                 resp.raise_for_status()
                 return resp.text
         except Exception as e:
-            logger.warning("DOF edition %s fetch failed: %s", url, e)
+            logger.debug("DOF edition %s fetch failed: %s", url, e)
             return None
 
     @classmethod
     def parse_notice_links(cls, html: str) -> List[Dict[str, str]]:
-        """Extract notice links (codigo, fecha) from DOF HTML."""
         soup = BeautifulSoup(html, "html.parser")
         links = []
         for a in soup.find_all("a", href=True):
@@ -82,7 +149,6 @@ class DOFFetcher:
                     "url": full_url,
                     "title": title,
                 })
-        # Deduplicate by codigo
         seen = set()
         unique = []
         for item in links:
@@ -93,7 +159,6 @@ class DOFFetcher:
 
     @classmethod
     def filter_sat_related(cls, notices: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Keep only notices whose title suggests SAT/SHCP/69-B content."""
         out = []
         for n in notices:
             title_upper = (n.get("title") or "").upper()
@@ -103,7 +168,6 @@ class DOFFetcher:
 
     @classmethod
     async def fetch_notice_detail(cls, codigo: str, fecha: str) -> str:
-        """Fetch a single DOF notice page to extract RFCs and snippet."""
         url = f"{DOF_BASE}/nota_detalle.php?codigo={codigo}&fecha={fecha}"
         async with httpx.AsyncClient(
             follow_redirects=True, timeout=25.0, verify=False, headers=_BROWSER_HEADERS
@@ -112,76 +176,149 @@ class DOFFetcher:
             resp.raise_for_status()
             return resp.text
 
+    # ── Structured extraction from detail pages ────────────────────────────
+
     @classmethod
     def extract_rfcs_from_html(cls, html: str) -> List[str]:
-        """Extract RFC-like tokens from HTML text."""
         text = BeautifulSoup(html, "html.parser").get_text()
         return list(set(RFC_PATTERN.findall(text.upper())))
 
     @classmethod
-    async def run(cls, limit_notices: int = 100, edition_days_back: int = 14) -> List[Dict[str, Any]]:
+    def extract_table_entries(cls, html: str) -> List[Dict[str, Optional[str]]]:
+        """Parse HTML tables for (RFC, razon_social) pairs.
+
+        DOF Art 69-B lists typically contain <table> elements with columns for
+        RFC and Razón Social / Denominación.  We look for header rows that
+        contain those keywords and extract matching cells.
         """
-        Fetch DOF index and recent edition pages (index.php?year=...&month=...&day=...&edicion=MAT),
-        parse notice links, filter SAT-related, fetch detail pages to extract RFCs.
-        Returns list of notice dicts suitable for PublicNotice upsert.
+        soup = BeautifulSoup(html, "html.parser")
+        entries: List[Dict[str, Optional[str]]] = []
+        seen_rfcs: set = set()
+
+        for table in soup.find_all("table"):
+            rows = table.find_all("tr")
+            if not rows:
+                continue
+
+            rfc_idx: Optional[int] = None
+            razon_idx: Optional[int] = None
+
+            for row in rows:
+                cells = row.find_all(["th", "td"])
+                cell_texts = [(c.get_text(strip=True) or "").upper() for c in cells]
+
+                # Detect header row
+                if rfc_idx is None:
+                    for i, t in enumerate(cell_texts):
+                        if t in ("RFC", "R.F.C.", "RFC CONTRIBUYENTE", "CLAVE RFC", "RFC_CONTRIBUYENTE"):
+                            rfc_idx = i
+                        if any(kw in t for kw in ("RAZON", "RAZÓN", "NOMBRE", "DENOMINACION", "DENOMINACIÓN")):
+                            razon_idx = i
+                    if rfc_idx is not None:
+                        continue
+
+                if rfc_idx is None:
+                    continue
+
+                if rfc_idx >= len(cells):
+                    continue
+
+                rfc_text = cells[rfc_idx].get_text(strip=True).upper()
+                m = RFC_PATTERN.search(rfc_text)
+                if not m:
+                    continue
+                rfc = m.group(1)
+                if rfc in seen_rfcs:
+                    continue
+                seen_rfcs.add(rfc)
+
+                razon: Optional[str] = None
+                if razon_idx is not None and razon_idx < len(cells):
+                    razon = cells[razon_idx].get_text(strip=True)[:300] or None
+
+                entries.append({"rfc": rfc, "razon_social": razon})
+
+        return entries
+
+    @classmethod
+    def _extract_entities(cls, detail_html: str) -> List[Dict[str, Optional[str]]]:
+        """Extract (RFC, razon_social) from a detail page.
+
+        Tries structured table parsing first; falls back to regex RFC extraction.
         """
-        notices_for_db = []
+        table_entries = cls.extract_table_entries(detail_html)
+        if table_entries:
+            return table_entries
+
+        rfcs = cls.extract_rfcs_from_html(detail_html)
+        return [{"rfc": rfc, "razon_social": None} for rfc in rfcs]
+
+    # ── Main entry point ──────────────────────────────────────────────────
+
+    @classmethod
+    async def run(cls, limit_notices: int = 100, edition_days_back: int = 30) -> List[Dict[str, Any]]:
+        """
+        Fetch DOF index + recent MAT and SUP edition pages, filter SAT-related
+        notices, fetch detail pages, extract (RFC, razon_social), classify
+        article_type and status.
+        """
+        notices_for_db: List[Dict[str, Any]] = []
         try:
-            all_links = []
-            # 1) Main index
+            all_links: List[Dict[str, str]] = []
+
             html = await cls.fetch_index()
             all_links.extend(cls.parse_notice_links(html))
             logger.info("DOF index: parsed %s notice links", len(all_links))
 
-            # 2) Recent edition pages (e.g. index.php?year=2025&month=11&day=21&edicion=MAT)
             today = datetime.utcnow().date()
             for i in range(edition_days_back):
                 d = today - timedelta(days=i)
-                edition_html = await cls.fetch_edition(d.year, d.month, d.day, "MAT")
-                if edition_html:
-                    edition_links = cls.parse_notice_links(edition_html)
-                    all_links.extend(edition_links)
-            # Deduplicate by codigo
-            seen_codigo = set()
-            links = []
+                for edicion in DOF_EDITIONS:
+                    edition_html = await cls.fetch_edition(d.year, d.month, d.day, edicion)
+                    if edition_html:
+                        all_links.extend(cls.parse_notice_links(edition_html))
+
+            seen_codigo: set = set()
+            links: List[Dict[str, str]] = []
             for item in all_links:
                 if item["codigo"] not in seen_codigo:
                     seen_codigo.add(item["codigo"])
                     links.append(item)
             logger.info("DOF total (index + editions): %s unique notice links", len(links))
 
-            sat_related = cls.filter_sat_related(links[: limit_notices * 2])
-            # Limit how many we actually fetch for RFC extraction
+            sat_related = cls.filter_sat_related(links[:limit_notices * 2])
             to_fetch = sat_related[:limit_notices]
+
             for item in to_fetch:
                 try:
                     detail_html = await cls.fetch_notice_detail(item["codigo"], item["fecha"])
-                    rfcs = cls.extract_rfcs_from_html(detail_html)
-                    for rfc in rfcs[:50]:  # cap RFCs per notice
+                    article_type, status = _classify_notice(item.get("title") or "")
+                    entities = cls._extract_entities(detail_html)
+
+                    for ent in entities[:200]:
                         notices_for_db.append({
                             "source": "dof",
                             "source_url": item["url"],
                             "dof_url": item["url"],
-                            "rfc": rfc,
-                            "razon_social": None,
-                            "article_type": "art_69b",  # DOF notices often 69-B
-                            "status": None,
+                            "rfc": ent["rfc"],
+                            "razon_social": ent.get("razon_social"),
+                            "article_type": article_type,
+                            "status": status,
                             "oficio_number": None,
                             "authority": "SAT/SHCP",
                             "motivo": (item.get("title") or "")[:500],
                             "published_at": cls._parse_fecha(item.get("fecha")),
                             "raw_snippet": (item.get("title") or "")[:1000],
                         })
-                    if not rfcs:
-                        # Still store notice so we have the DOF link for manual lookup
+                    if not entities:
                         notices_for_db.append({
                             "source": "dof",
                             "source_url": item["url"],
                             "dof_url": item["url"],
                             "rfc": None,
                             "razon_social": None,
-                            "article_type": "art_69b",
-                            "status": None,
+                            "article_type": article_type,
+                            "status": status,
                             "oficio_number": None,
                             "authority": "SAT/SHCP",
                             "motivo": (item.get("title") or "")[:500],
@@ -195,8 +332,7 @@ class DOFFetcher:
         return notices_for_db
 
     @staticmethod
-    def _parse_fecha(fecha: str) -> datetime | None:
-        """Parse DD/MM/YYYY or DD/MM/YY to datetime."""
+    def _parse_fecha(fecha: str) -> Optional[datetime]:
         if not fecha:
             return None
         try:

@@ -1,7 +1,8 @@
 """
 Previa App — AI Chat API
 Connects to Anthropic Claude for fiscal compliance assistant conversations.
-The agent understands CSV/XLS column structures, watchlists, and indexed controversial news about empresas.
+The agent can search indexed PublicNotice (SAT/DOF compliance data) and CompanyNews
+(controversial news) on-demand via Claude tool-use — by RFC and/or company name.
 """
 
 import logging
@@ -9,12 +10,12 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from anthropic import Anthropic
-from sqlalchemy import select
+from sqlalchemy import select, or_
 
 from app.api.deps import get_current_user
 from app.config.settings import settings
 from app.data.db.session import get_db
-from app.data.db.models import CompanyNews
+from app.data.db.models import CompanyNews, PublicNotice
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
@@ -39,11 +40,11 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
-    context: Optional[dict] = None   # e.g. {"organization": "Grupo X", "watchlist": "Proveedores", "watchlist_id": 1}
+    context: Optional[dict] = None
 
 class ChatResponse(BaseModel):
     response: str
-    suggested_action: Optional[str] = None   # e.g. "upload_csv", "create_watchlist"
+    suggested_action: Optional[str] = None
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 
@@ -60,6 +61,8 @@ Tu especialidad:
 Fuentes de datos para alertas (indexadas y actualizadas periódicamente):
 - DOF (Diario Oficial de la Federación): https://dof.gob.mx/ y ediciones por fecha, ej. https://dof.gob.mx/index.php?year=2025&month=11&day=21&edicion=MAT
 - SAT Datos Abiertos: http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos/ (contribuyentes publicados, controversia, sat_mas_abierto y demás datos públicos SAT/SHCP). Las alertas se generan a partir de estas fuentes.
+- Gaceta Parlamentaria: https://gaceta.diputados.gob.mx/ — iniciativas, dictámenes y reformas legislativas en materia fiscal/tributaria aprobadas o en proceso en la Cámara de Diputados.
+- Leyes Federales de México: https://www.diputados.gob.mx/LeyesBiblio/index.htm — seguimiento de reformas recientes al CFF, ISR, LIVA, LIEPS, LFPIORPI y demás leyes fiscales vigentes.
 
 Estructura del sistema:
 - El usuario gestiona Organizaciones (crea/edita manualmente)
@@ -73,38 +76,124 @@ Cuando el usuario quiera cargar datos de proveedores:
 - Columnas estándar esperadas: RFC, Razón Social, Tipo Persona, Relación (proveedor/cliente)
 - Si el CSV tiene columnas distintas, infiere el mapeo y preguntas de confirmación
 
+Herramientas disponibles:
+- Usa la herramienta "search_company" para buscar un RFC o nombre de empresa en los datos \
+indexados del SAT, DOF y noticias. Siempre úsala cuando el usuario pregunte sobre una empresa \
+específica, un RFC, noticias, cumplimiento fiscal, o riesgo de un proveedor. Puedes buscar \
+por RFC, por nombre (razón social), o ambos. Cita las fuentes y URLs en tu respuesta.
+
 Reglas:
 - Responde siempre en español mexicano profesional
 - Sé conciso y directo; si el usuario pide análisis, sé detallado
 - Para cargar datos, siempre sugiere el flujo: Subir CSV/XLS → Seleccionar Watchlist → Confirmar mapeo
-- No inventes datos del SAT ni resultados de screening; solo orienta al usuario en el proceso
+- No inventes datos del SAT ni resultados de screening; usa la herramienta search_company para obtener datos reales
 - Si detectas que el usuario quiere crear una organización, indícale que debe hacerlo desde el panel lateral
-- Tienes acceso a noticias indexadas sobre empresas (controversias, cobertura en medios). Usa el bloque "Noticias sobre empresas" cuando el usuario pregunte por una empresa o por noticias recientes; cita título y URL cuando sea relevante.
 """
 
-# ── News context for agent ────────────────────────────────────────────────────
+# ── Claude tool definition ────────────────────────────────────────────────────
 
-async def _get_news_context(db: AsyncSession, watchlist_id: Optional[int], limit: int = 25) -> str:
-    """Fetch indexed controversial news (by watchlist or recent) and format for system prompt."""
-    q = (
-        select(CompanyNews)
-        .order_by(CompanyNews.published_at.desc().nullslast(), CompanyNews.indexed_at.desc())
-        .limit(limit)
-    )
+SEARCH_COMPANY_TOOL = {
+    "name": "search_company",
+    "description": (
+        "Search indexed SAT/DOF/Gaceta/Leyes compliance data (PublicNotice) and controversial news "
+        "(CompanyNews) by RFC and/or company name (razón social). Returns compliance "
+        "findings (Art 69, 69-B, 69-B Bis, 49 BIS), legislative context from Gaceta Parlamentaria, "
+        "law reform tracking from Leyes Federales, and recent news articles. "
+        "Use this whenever the user asks about a company, RFC, compliance status, "
+        "legislative changes, or controversial news."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "rfc": {
+                "type": "string",
+                "description": "RFC to search for (e.g. CAL080328S18). Optional if company_name is provided.",
+            },
+            "company_name": {
+                "type": "string",
+                "description": "Company name / razón social to search (partial match). Optional if rfc is provided.",
+            },
+        },
+        "required": [],
+    },
+}
+
+MAX_TOOL_ROUNDS = 3
+
+# ── Tool execution ────────────────────────────────────────────────────────────
+
+async def _execute_search_company(
+    db: AsyncSession,
+    rfc: Optional[str],
+    company_name: Optional[str],
+    watchlist_id: Optional[int] = None,
+) -> str:
+    """Run the search_company tool against DB and return formatted text."""
+    results_parts: List[str] = []
+
+    # Build PublicNotice query
+    pn_filters = []
+    if rfc:
+        pn_filters.append(PublicNotice.rfc == rfc.strip().upper())
+    if company_name:
+        pn_filters.append(PublicNotice.razon_social.ilike(f"%{company_name.strip()}%"))
+
+    if pn_filters:
+        q = (
+            select(PublicNotice)
+            .where(or_(*pn_filters))
+            .order_by(PublicNotice.indexed_at.desc())
+            .limit(30)
+        )
+        rows = (await db.execute(q)).scalars().all()
+        if rows:
+            results_parts.append(f"## Hallazgos en datos SAT/DOF ({len(rows)} registros)")
+            for r in rows:
+                line = (
+                    f"- [{r.article_type}] RFC={r.rfc or 'N/A'} | "
+                    f"{r.razon_social or 'N/A'} | status={r.status or 'N/A'} | "
+                    f"fuente={r.source} | url={r.source_url or 'N/A'}"
+                )
+                if r.motivo:
+                    line += f" | motivo={r.motivo[:150]}"
+                if r.published_at:
+                    line += f" | fecha={r.published_at.strftime('%Y-%m-%d')}"
+                results_parts.append(line)
+        else:
+            results_parts.append("No se encontraron hallazgos en datos SAT/DOF para esta búsqueda.")
+
+    # Build CompanyNews query
+    cn_filters = []
+    if rfc:
+        cn_filters.append(CompanyNews.rfc == rfc.strip().upper())
+    if company_name:
+        cn_filters.append(CompanyNews.razon_social.ilike(f"%{company_name.strip()}%"))
     if watchlist_id is not None:
-        q = q.where(CompanyNews.watchlist_id == watchlist_id)
-    result = await db.execute(q)
-    rows = result.scalars().all()
-    if not rows:
-        return ""
-    lines = ["Noticias indexadas sobre empresas (controversias / cobertura en medios):"]
-    for r in rows:
-        company = (r.razon_social or r.rfc or "N/A").strip()
-        date_str = r.published_at.strftime("%Y-%m-%d") if r.published_at else "s/f"
-        lines.append(f"- [{company}] {r.title} — {r.url} ({date_str})")
-        if r.summary:
-            lines.append(f"  Resumen: {r.summary[:200]}{'...' if len(r.summary) > 200 else ''}")
-    return "\n".join(lines)
+        cn_filters.append(CompanyNews.watchlist_id == watchlist_id)
+
+    if cn_filters:
+        q = (
+            select(CompanyNews)
+            .where(or_(*cn_filters))
+            .order_by(CompanyNews.published_at.desc().nullslast(), CompanyNews.indexed_at.desc())
+            .limit(15)
+        )
+        news_rows = (await db.execute(q)).scalars().all()
+        if news_rows:
+            results_parts.append(f"\n## Noticias controversiales ({len(news_rows)} artículos)")
+            for n in news_rows:
+                company = (n.razon_social or n.rfc or "N/A").strip()
+                date_str = n.published_at.strftime("%Y-%m-%d") if n.published_at else "s/f"
+                results_parts.append(f"- [{company}] {n.title} — {n.url} ({date_str})")
+                if n.summary:
+                    results_parts.append(f"  Resumen: {n.summary[:200]}")
+        else:
+            results_parts.append("No se encontraron noticias controversiales para esta búsqueda.")
+
+    if not pn_filters and not cn_filters:
+        return "No se proporcionó RFC ni nombre de empresa para la búsqueda."
+
+    return "\n".join(results_parts) or "Sin resultados."
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
@@ -117,13 +206,11 @@ async def chat(
 ):
     """
     Send a message to the Previa App AI assistant.
-    Maintains conversation history and returns a response plus optional suggested action.
-    Injects indexed controversial news about empresas when available.
+    Uses Claude tool-use for on-demand search of SAT/DOF compliance data and news.
     """
     try:
         client = get_anthropic_client()
 
-        # Build message history for Claude
         messages = [
             {"role": msg.role, "content": msg.content}
             for msg in request.history
@@ -131,7 +218,6 @@ async def chat(
         ]
         messages.append({"role": "user", "content": request.message})
 
-        # Enrich system prompt with context if provided
         system = SYSTEM_PROMPT
         if request.context:
             ctx_parts = []
@@ -142,24 +228,64 @@ async def chat(
             if ctx_parts:
                 system += "\n\nContexto actual:\n" + "\n".join(ctx_parts)
 
-        # Inject indexed controversial news for agent to search/cite
         watchlist_id = None
         if request.context and isinstance(request.context.get("watchlist_id"), (int, float)):
             watchlist_id = int(request.context["watchlist_id"])
-        news_block = await _get_news_context(db, watchlist_id)
-        if news_block:
-            system += "\n\n" + news_block
 
+        tools = [SEARCH_COMPANY_TOOL]
+
+        # Tool-use loop: let Claude call search_company, then continue
         response = client.messages.create(
             model=settings.anthropic_model,
-            max_tokens=1500,
+            max_tokens=2000,
             system=system,
             messages=messages,
+            tools=tools,
         )
 
-        reply = response.content[0].text
+        for _ in range(MAX_TOOL_ROUNDS):
+            if response.stop_reason != "tool_use":
+                break
 
-        # Detect suggested actions based on keywords in the reply
+            tool_results = []
+            for block in response.content:
+                if block.type == "tool_use" and block.name == "search_company":
+                    inp = block.input or {}
+                    result_text = await _execute_search_company(
+                        db,
+                        rfc=inp.get("rfc"),
+                        company_name=inp.get("company_name"),
+                        watchlist_id=watchlist_id,
+                    )
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result_text,
+                    })
+
+            if not tool_results:
+                break
+
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({"role": "user", "content": tool_results})
+
+            response = client.messages.create(
+                model=settings.anthropic_model,
+                max_tokens=2000,
+                system=system,
+                messages=messages,
+                tools=tools,
+            )
+
+        # Extract final text
+        reply = ""
+        for block in response.content:
+            if hasattr(block, "text"):
+                reply += block.text
+
+        if not reply:
+            reply = "No pude generar una respuesta. Intenta reformular tu pregunta."
+
         suggested_action = None
         if any(kw in reply.lower() for kw in ["subir", "cargar", "upload", "csv", "xls", "archivo"]):
             suggested_action = "upload_csv"

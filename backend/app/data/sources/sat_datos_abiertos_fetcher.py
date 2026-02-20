@@ -69,40 +69,50 @@ KNOWN_SAT_FILES: List[Tuple[str, str, Optional[str]]] = [
 # See: http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos/contribuyentes_publicados.html
 
 FILE_CLASSIFICATION: List[Tuple[str, str, Optional[str]]] = [
-    # Art. 69-B
-    ("definitivo",            "art_69b",  "definitivo"),
-    ("presunto",              "art_69b",  "presunto"),
-    ("desvirtuado",           "art_69b",  "desvirtuado"),
-    ("sentencia favorable",   "art_69b",  "sentencia_favorable"),
-    ("sentencias favorable",  "art_69b",  "sentencia_favorable"),
-    ("listado completo",      "art_69b",  None),             # mixed statuses
+    # Art. 69-B (EFOS)
+    ("definitivo",            "art_69b",    "definitivo"),
+    ("presunto",              "art_69b",    "presunto"),
+    ("desvirtuado",           "art_69b",    "desvirtuado"),
+    ("sentencia favorable",   "art_69b",    "sentencia_favorable"),
+    ("sentencias favorable",  "art_69b",    "sentencia_favorable"),
+    ("listado completo",      "art_69b",    None),
 
-    # Art. 69-B Bis
+    # Art. 69-B Bis (must come before generic "69-b" match in classify)
     ("listado global",        "art_69_bis", "definitivo"),
     ("69-b bis",              "art_69_bis", None),
 
-    # Art. 69 — contribuyentes publicados (todos los listados del Art. 69 CFF)
+    # Art. 49 BIS
+    ("49 bis",                "art_49_bis", None),
+    ("49-bis",                "art_49_bis", None),
+
+    # Art. 69 — contribuyentes publicados
     ("firme",                 "art_69",   "credito_firme"),
     ("no localizado",         "art_69",   "no_localizado"),
     ("cancelado",             "art_69",   "credito_cancelado"),
     ("sentencia",             "art_69",   "sentencia_condenatoria"),
-    ("exigible",              "art_69",   "credito_firme"),
-    ("csd sin efecto",        "art_69",   None),
-    ("entes públicos",        "art_69",   None),
-    ("gobierno omisos",       "art_69",   None),
-    ("omisos",                "art_69",   None),
-    ("retorno",               "art_69",   None),
-    ("inversiones",           "art_69",   None),            # retorno de inversiones
-    ("condonado",             "art_69",   "credito_cancelado"),
-    ("concurso mercantil",    "art_69",   "credito_cancelado"),  # Art. 146B
-    ("146b",                  "art_69",   "credito_cancelado"),
-    ("por decreto",           "art_69",   "credito_cancelado"),
-    ("146a",                  "art_69",   "credito_cancelado"),  # Cancelados Art. 146A
-    ("reducción de multa",    "art_69",   "credito_cancelado"),
-    ("reducción de recargo",  "art_69",   "credito_cancelado"),
-    ("artículo 74",           "art_69",   "credito_cancelado"),
-    ("artículo 21",           "art_69",   "credito_cancelado"),
+    ("exigible",              "art_69",   "exigible"),
+    ("csd sin efecto",        "art_69",   "csd_sin_efectos"),
+    ("certificado de sello",  "art_69",   "csd_sin_efectos"),
+    ("entes públicos",        "art_69",   "entes_publicos_omisos"),
+    ("gobierno omisos",       "art_69",   "entes_publicos_omisos"),
+    ("omisos",                "art_69",   "omisos"),
+    ("retorno",               "art_69",   "retorno_inversiones"),
+    ("inversiones",           "art_69",   "retorno_inversiones"),
+    ("condonado",             "art_69",   "condonado"),
+    ("concurso mercantil",    "art_69",   "concurso_mercantil"),
+    ("146b",                  "art_69",   "concurso_mercantil"),
+    ("por decreto",           "art_69",   "condonado_decreto"),
+    ("146a",                  "art_69",   "credito_cancelado"),
+    ("reducción de multa",    "art_69",   "reduccion_multa"),
+    ("reducción de recargo",  "art_69",   "reduccion_recargo"),
+    ("artículo 74",           "art_69",   "reduccion_multa"),
+    ("artículo 21",           "art_69",   "reduccion_recargo"),
 ]
+
+# Regex to extract a date from link text like "Firmes - 12/02/2026" or "12-feb-2026"
+_LINK_DATE_RE = re.compile(
+    r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})"
+)
 
 
 def _classify_link(link_text: str) -> Tuple[str, Optional[str]]:
@@ -111,7 +121,22 @@ def _classify_link(link_text: str) -> Tuple[str, Optional[str]]:
     for keyword, article_type, status in FILE_CLASSIFICATION:
         if keyword in text:
             return article_type, status
-    return "art_69b", None
+    logger.debug("SAT link text unclassified, defaulting to art_69: %s", link_text[:120])
+    return "art_69", None
+
+
+def _parse_date_from_text(text: str) -> Optional[datetime]:
+    """Try to extract a date from link text (e.g. 'Firmes - 12/02/2026')."""
+    m = _LINK_DATE_RE.search(text)
+    if not m:
+        return None
+    try:
+        d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if y < 100:
+            y += 2000
+        return datetime(y, mo, d)
+    except (ValueError, OverflowError):
+        return None
 
 
 def _find_rfc_column(df: pd.DataFrame) -> Optional[str]:
@@ -145,6 +170,22 @@ def _find_status_column(df: pd.DataFrame) -> Optional[str]:
     for col in df.columns:
         name = str(col).strip().upper()
         if any(kw in name for kw in ("SITUACION", "SITUACIÓN", "ESTATUS", "STATUS", "SUPUESTO")):
+            return str(col)
+    return None
+
+
+def _find_oficio_column(df: pd.DataFrame) -> Optional[str]:
+    for col in df.columns:
+        name = str(col).strip().upper()
+        if any(kw in name for kw in ("OFICIO", "NÚMERO DE OFICIO", "NUMERO DE OFICIO", "NUM_OFICIO")):
+            return str(col)
+    return None
+
+
+def _find_motivo_column(df: pd.DataFrame) -> Optional[str]:
+    for col in df.columns:
+        name = str(col).strip().upper()
+        if any(kw in name for kw in ("MOTIVO", "OBSERVACION", "OBSERVACIÓN", "DESCRIPCION", "DESCRIPCIÓN")):
             return str(col)
     return None
 
@@ -316,6 +357,7 @@ class SATDatosAbiertosFetcher:
         source_url: str,
         article_type: str,
         default_status: Optional[str],
+        link_text: str = "",
     ) -> List[Dict[str, Any]]:
         """Convert a DataFrame into a list of notice dicts for PublicNotice."""
         rfc_col = _find_rfc_column(df)
@@ -325,6 +367,10 @@ class SATDatosAbiertosFetcher:
 
         razon_col = _find_razon_column(df, rfc_col)
         status_col = _find_status_column(df) if default_status is None else None
+        oficio_col = _find_oficio_column(df)
+        motivo_col = _find_motivo_column(df)
+
+        published_at = _parse_date_from_text(link_text)
 
         notices = []
         for _, row in df.iterrows():
@@ -338,6 +384,21 @@ class SATDatosAbiertosFetcher:
             if status_col and pd.notna(row.get(status_col)):
                 status = str(row[status_col]).strip().lower()
 
+            oficio = None
+            if oficio_col and pd.notna(row.get(oficio_col)):
+                oficio = str(row[oficio_col]).strip()[:200] or None
+
+            motivo = None
+            if motivo_col and pd.notna(row.get(motivo_col)):
+                motivo = str(row[motivo_col]).strip()[:500] or None
+
+            snippet_parts = [f"{rfc_col}={raw_rfc}"]
+            if razon:
+                snippet_parts.append(razon[:80])
+            if status:
+                snippet_parts.append(status)
+            raw_snippet = " | ".join(snippet_parts)[:500]
+
             notices.append({
                 "source": "sat_datos_abiertos",
                 "source_url": source_url,
@@ -347,11 +408,11 @@ class SATDatosAbiertosFetcher:
                 "article_type": article_type,
                 "status": status,
                 "category": status if article_type == "art_69" else None,
-                "oficio_number": None,
+                "oficio_number": oficio,
                 "authority": "SAT",
-                "motivo": None,
-                "published_at": None,
-                "raw_snippet": None,
+                "motivo": motivo,
+                "published_at": published_at,
+                "raw_snippet": raw_snippet,
             })
         return notices
 
@@ -401,7 +462,7 @@ class SATDatosAbiertosFetcher:
                 if df is None or df.empty:
                     continue
 
-                notices = cls.extract_notices_from_df(df, link["url"], article_type, status)
+                notices = cls.extract_notices_from_df(df, link["url"], article_type, status, link_text=context)
                 logger.info("SAT %s: parsed %d RFCs from %s", label, len(notices), link["url"][-50:])
                 all_notices.extend(notices)
                 files_processed += 1

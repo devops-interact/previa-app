@@ -2,16 +2,18 @@
 Previa App — Article 69 Screening Tool
 Screen RFCs against SAT's Article 69 non-compliance lists.
 Queries indexed PublicNotice data first; falls back to mock for demo RFCs.
+Supports search by razon_social (company name) as fallback.
 
-Covers four categories:
+Covers categories:
 1. Créditos Fiscales Firmes — Taxpayers with firm, enforceable tax debts
 2. No Localizados — Taxpayers whose fiscal domicile cannot be verified
 3. Créditos Cancelados — Cancelled tax credits
 4. Sentencia Condenatoria por Delito Fiscal — Criminal convictions for fiscal crimes
+5. Exigibles, CSD sin efectos, Entes públicos omisos, etc.
 """
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,26 +82,47 @@ def _notices_to_69_result(notices: list) -> Dict:
     return {"found": True, "categories": categories}
 
 
-async def screen_69(rfc: str, db: AsyncSession) -> Dict:
+async def screen_69(
+    rfc: str,
+    db: AsyncSession,
+    razon_social: Optional[str] = None,
+) -> Dict:
     """
-    Screen an RFC against Article 69 non-compliance lists.
-    First queries indexed PublicNotice (SAT Datos Abiertos); then falls back to mock.
+    Screen against Article 69 non-compliance lists.
+    Queries by RFC first; falls back to razon_social (ILIKE) when provided.
     """
-    rfc_upper = rfc.strip().upper()
+    rfc_upper = rfc.strip().upper() if rfc else ""
 
-    result = await db.execute(
-        select(PublicNotice)
-        .where(PublicNotice.rfc == rfc_upper, PublicNotice.article_type == "art_69")
-        .order_by(PublicNotice.indexed_at.desc())
-    )
-    rows = result.scalars().all()
-    if rows:
-        logger.info("RFC %s found in indexed Art. 69 data (%d records)", rfc, len(rows))
-        return _notices_to_69_result(rows)
+    if rfc_upper:
+        result = await db.execute(
+            select(PublicNotice)
+            .where(PublicNotice.rfc == rfc_upper, PublicNotice.article_type == "art_69")
+            .order_by(PublicNotice.indexed_at.desc())
+        )
+        rows = result.scalars().all()
+        if rows:
+            logger.info("RFC %s found in indexed Art. 69 data (%d records)", rfc, len(rows))
+            return _notices_to_69_result(rows)
 
-    if rfc_upper in _MOCK_69:
+    if razon_social:
+        name = razon_social.strip()
+        if name:
+            result = await db.execute(
+                select(PublicNotice)
+                .where(
+                    PublicNotice.razon_social.ilike(f"%{name}%"),
+                    PublicNotice.article_type == "art_69",
+                )
+                .order_by(PublicNotice.indexed_at.desc())
+            )
+            rows = result.scalars().all()
+            if rows:
+                logger.info("Company '%s' found in indexed Art. 69 data by name (%d records)", name, len(rows))
+                return _notices_to_69_result(rows)
+
+    if rfc_upper and rfc_upper in _MOCK_69:
         logger.info("RFC %s found in Art. 69 mock data", rfc)
         return _MOCK_69[rfc_upper]
 
-    logger.info("RFC %s not found in Art. 69 lists", rfc)
+    logger.info("RFC %s / name '%s' not found in Art. 69 lists", rfc, razon_social or "")
     return {"found": False, "categories": []}
