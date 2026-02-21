@@ -44,10 +44,16 @@ def upgrade() -> None:
     except Exception:
         pass
 
-    # Performance indexes
-    op.create_index("ix_wc_watchlist_rfc", "watchlist_companies", ["watchlist_id", "rfc"], if_not_exists=True)
-    op.create_index("ix_pn_rfc_article", "public_notices", ["rfc", "article_type"], if_not_exists=True)
-    op.create_index("ix_cn_rfc_published", "company_news", ["rfc", "published_at"], if_not_exists=True)
+    # Performance indexes (wrapped in try/except for idempotency)
+    for idx_name, table, cols in [
+        ("ix_wc_watchlist_rfc", "watchlist_companies", ["watchlist_id", "rfc"]),
+        ("ix_pn_rfc_article", "public_notices", ["rfc", "article_type"]),
+        ("ix_cn_rfc_published", "company_news", ["rfc", "published_at"]),
+    ]:
+        try:
+            op.create_index(idx_name, table, cols)
+        except Exception:
+            pass
 
 
 def downgrade() -> None:
