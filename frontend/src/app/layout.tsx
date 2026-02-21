@@ -1,10 +1,8 @@
 import type { Metadata } from "next"
 import { JetBrains_Mono } from "next/font/google"
 import "./globals.css"
-import "@fortawesome/fontawesome-svg-core/styles.css"
-import { config } from "@fortawesome/fontawesome-svg-core"
-config.autoAddCss = false
 import { UploadModalProvider } from "@/contexts/UploadModalContext"
+import { OrgProvider } from "@/contexts/OrgContext"
 
 const jetbrainsMono = JetBrains_Mono({
     subsets: ["latin"],
@@ -24,9 +22,11 @@ export default function RootLayout({
     return (
         <html lang="es" className={jetbrainsMono.variable}>
             <body className="min-h-screen bg-previa-background text-previa-ink">
-                <UploadModalProvider>
-                    {children}
-                </UploadModalProvider>
+                <OrgProvider>
+                    <UploadModalProvider>
+                        {children}
+                    </UploadModalProvider>
+                </OrgProvider>
             </body>
         </html>
     )

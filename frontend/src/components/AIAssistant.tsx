@@ -403,7 +403,6 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
                     </div>
                     <div className="min-w-0">
                         <h2 className="text-sm font-semibold text-previa-ink leading-tight">Agente Fiscal</h2>
-                        <p className="text-[11px] text-previa-muted leading-tight">Previa App · Claude AI</p>
                     </div>
                 </div>
                 {context?.watchlist && (

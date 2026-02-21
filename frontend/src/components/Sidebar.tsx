@@ -9,6 +9,7 @@ import {
 import { useState, useEffect } from 'react'
 import type { Organization, Watchlist } from '@/types'
 import { apiClient } from '@/lib/api-client'
+import { useOrg } from '@/contexts/OrgContext'
 import { OrganizationModal } from './OrganizationModal'
 
 interface SidebarProps {
@@ -31,10 +32,19 @@ function getUserInfo(): { username: string; email: string; initial: string } {
 export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
     const pathname = usePathname()
     const router = useRouter()
-    const [organizations, setOrganizations] = useState<Organization[]>([])
+    const {
+        organizations,
+        loading: loadingOrgs,
+        handleOrgCreated,
+        handleOrgUpdated,
+        handleOrgDeleted,
+        handleWatchlistCreated,
+        handleWatchlistUpdated,
+        handleWatchlistDeleted,
+    } = useOrg()
+
     const [expandedOrgs, setExpandedOrgs] = useState<Set<number>>(new Set())
     const [showOrgModal, setShowOrgModal] = useState(false)
-    const [loadingOrgs, setLoadingOrgs] = useState(true)
     const [activeWatchlist, setActiveWatchlist] = useState<number | null>(null)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [sweepStatus, setSweepStatus] = useState<{
@@ -45,7 +55,12 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
     useEffect(() => { setMobileOpen(false) }, [pathname])
 
-    useEffect(() => { loadOrganizations() }, [])
+    // Auto-expand the first org once loaded
+    useEffect(() => {
+        if (organizations.length > 0 && expandedOrgs.size === 0) {
+            setExpandedOrgs(new Set([organizations[0].id]))
+        }
+    }, [organizations])
 
     useEffect(() => {
         const loadSweepStatus = async () => {
@@ -62,21 +77,6 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
         const t = setInterval(loadSweepStatus, 60_000)
         return () => clearInterval(t)
     }, [])
-
-    const loadOrganizations = async () => {
-        try {
-            setLoadingOrgs(true)
-            const orgs = await apiClient.listOrganizations()
-            setOrganizations(orgs)
-            if (orgs.length > 0) {
-                setExpandedOrgs(new Set([orgs[0].id]))
-            }
-        } catch {
-            /* auth may not be ready */
-        } finally {
-            setLoadingOrgs(false)
-        }
-    }
 
     const toggleOrg = (orgId: number) => {
         setExpandedOrgs((prev) => {
@@ -96,34 +96,6 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
     const handleLogout = () => {
         localStorage.removeItem('previa_auth')
         router.push('/')
-    }
-
-    const handleOrgCreated = (org: Organization) => {
-        setOrganizations((prev) => [...prev, org])
-        setExpandedOrgs((prev) => new Set([...prev, org.id]))
-    }
-
-    const handleOrgDeleted = (orgId: number) => {
-        setOrganizations((prev) => prev.filter((o) => o.id !== orgId))
-    }
-
-    const handleWatchlistCreated = (orgId: number, wl: Watchlist) => {
-        setOrganizations((prev) =>
-            prev.map((o) =>
-                o.id === orgId ? { ...o, watchlists: [...o.watchlists, wl] } : o
-            )
-        )
-    }
-
-    const handleWatchlistDeleted = (orgId: number, wlId: number) => {
-        setOrganizations((prev) =>
-            prev.map((o) =>
-                o.id === orgId
-                    ? { ...o, watchlists: o.watchlists.filter((w) => w.id !== wlId) }
-                    : o
-            )
-        )
-        if (activeWatchlist === wlId) setActiveWatchlist(null)
     }
 
     const user = getUserInfo()
@@ -171,7 +143,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                     </button>
                 </div>
 
-                {/* User Info — username + email */}
+                {/* User Info */}
                 <div className="p-4 border-b border-previa-border flex items-center space-x-3">
                     <div className="w-9 h-9 rounded-full bg-previa-accent/20 text-previa-accent flex items-center justify-center font-semibold text-sm flex-shrink-0">
                         {user.initial}
@@ -188,7 +160,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
                 <nav className="flex-1 overflow-y-auto py-4 space-y-1">
 
-                    {/* ── Tablero link ──────────────────────────────────────── */}
+                    {/* Tablero link */}
                     <div className="px-4 mb-2">
                         <Link
                             href="/tablero"
@@ -205,7 +177,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
                     <div className="border-t border-previa-border mx-4 my-2" />
 
-                    {/* ── Organizaciones section ────────────────────────────── */}
+                    {/* Organizaciones section */}
                     <div className="px-4 mb-1 pb-4">
                         <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-semibold text-previa-muted uppercase tracking-wider">
@@ -312,7 +284,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
                     <div className="border-t border-previa-border mx-4 my-2" />
 
-                    {/* ── Configuración ─────────────────────────────────────── */}
+                    {/* Configuración */}
                     <div className="px-4 pb-4">
                         <h3 className="text-xs font-semibold text-previa-muted uppercase tracking-wider mb-1">
                             Configuración
@@ -378,8 +350,10 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                     onClose={() => setShowOrgModal(false)}
                     onCreated={handleOrgCreated}
                     onDeleted={handleOrgDeleted}
+                    onOrgUpdated={handleOrgUpdated}
                     onWatchlistCreated={handleWatchlistCreated}
                     onWatchlistDeleted={handleWatchlistDeleted}
+                    onWatchlistUpdated={handleWatchlistUpdated}
                 />
             )}
         </>

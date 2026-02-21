@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import {
     Search, ChevronDown, ChevronRight, ChevronUp, LayoutList, LayoutGrid,
     Plus, Pencil, Check, X, Loader2, Building2, RefreshCw, ShieldAlert, ShieldCheck,
-    AlertTriangle, Info, ExternalLink, Calendar, Tag, FileText, Clock, Eye,
+    AlertTriangle, Info, ExternalLink, Calendar, Tag, FileText, Clock, Eye, Trash2,
 } from '@/lib/icons'
 import { Sidebar } from '@/components/Sidebar'
 import { AuthGuard } from '@/components/AuthGuard'
@@ -440,6 +440,14 @@ function CRMPageContent() {
         }
     }
 
+    const deleteEmpresa = async (row: EmpresaRow) => {
+        if (!confirm(`¿Eliminar ${row.rfc} de la watchlist?`)) return
+        try {
+            await apiClient.deleteCompany(row.watchlist_id, row.id)
+            setEmpresas((prev) => prev.filter((e) => e.id !== row.id))
+        } catch { /* ignore */ }
+    }
+
     const toggleGroup = (g: string) =>
         setCollapsedGroups((prev) => {
             const next = new Set(prev)
@@ -464,6 +472,7 @@ function CRMPageContent() {
         { key: 'tag', label: 'Tag', width: 'w-28' },
         { key: 'screened', label: 'Escaneo', sortable: 'last_screened', width: 'w-24' },
         { key: 'detail', label: '', width: 'w-10' },
+        { key: 'actions', label: '', width: 'w-10' },
     ]
 
     // ── Row renderer ─────────────────────────────────────────────────────────
@@ -551,6 +560,15 @@ function CRMPageContent() {
                     aria-label="Ver detalle"
                 >
                     <Eye className="w-3.5 h-3.5" />
+                </button>
+            </td>
+            <td className="px-2 py-2.5 text-center">
+                <button
+                    onClick={(e) => { e.stopPropagation(); deleteEmpresa(row) }}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-previa-muted hover:text-red-400 hover:bg-red-400/10 transition-all"
+                    aria-label="Eliminar empresa"
+                >
+                    <Trash2 className="w-3.5 h-3.5" />
                 </button>
             </td>
         </tr>

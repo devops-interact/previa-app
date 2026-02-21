@@ -1,10 +1,10 @@
 """
 Previa App — Organizations & Watchlists API
-CRUD for organizations and their nested watchlists + companies.
-Includes plan limit enforcement and full tenant isolation.
+Full CRUD for organizations, their nested watchlists, and companies.
+All list endpoints return flat arrays. Tenant isolation via ownership checks.
 """
 
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,8 +29,16 @@ class OrgCreate(BaseModel):
     name: str
     description: Optional[str] = None
 
+class OrgPatch(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
 class WatchlistCreate(BaseModel):
     name: str
+    description: Optional[str] = None
+
+class WatchlistPatch(BaseModel):
+    name: Optional[str] = None
     description: Optional[str] = None
 
 class CompanyCreate(BaseModel):
@@ -44,13 +52,7 @@ class CompanyPatch(BaseModel):
     group_tag: Optional[str] = None
     extra_data: Optional[dict] = None
 
-class PaginatedResponse(BaseModel):
-    items: list
-    total: int
-    page: int
-    page_size: int
-
-# ── Company serialization ──────────────────────────────────────────────────
+# ── Serialization helpers ─────────────────────────────────────────────────────
 
 def _company_to_dict(c: WatchlistCompany) -> dict:
     return {
@@ -70,57 +72,67 @@ def _company_to_dict(c: WatchlistCompany) -> dict:
         "last_screened_at": c.last_screened_at.isoformat() if c.last_screened_at else None,
     }
 
-# ── Organizations ─────────────────────────────────────────────────────────────
+
+async def _watchlist_to_dict(wl: Watchlist, db: AsyncSession) -> dict:
+    co_count = (await db.execute(
+        select(func.count()).select_from(WatchlistCompany)
+        .where(WatchlistCompany.watchlist_id == wl.id)
+    )).scalar() or 0
+    return {
+        "id": wl.id,
+        "organization_id": wl.organization_id,
+        "name": wl.name,
+        "description": wl.description,
+        "created_at": wl.created_at.isoformat() if wl.created_at else None,
+        "company_count": co_count,
+    }
+
+
+async def _org_to_dict(org: Organization, db: AsyncSession) -> dict:
+    wl_result = await db.execute(
+        select(Watchlist).where(Watchlist.organization_id == org.id)
+    )
+    watchlists = wl_result.scalars().all()
+    wl_list = [await _watchlist_to_dict(wl, db) for wl in watchlists]
+    return {
+        "id": org.id,
+        "name": org.name,
+        "description": org.description,
+        "created_at": org.created_at.isoformat() if org.created_at else None,
+        "watchlists": wl_list,
+    }
+
+
+# ── Organizations — CRUD ─────────────────────────────────────────────────────
 
 @router.get("/organizations")
 async def list_organizations(
     current_user: Annotated[dict, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
 ):
-    """List all organizations for the current user (paginated)."""
+    """List all organizations for the current user. Returns a flat array."""
     user_id = current_user["user_id"]
-    base = select(Organization).where(Organization.user_id == user_id)
-
-    total = (await db.execute(
-        select(func.count()).select_from(Organization).where(Organization.user_id == user_id)
-    )).scalar() or 0
-
     result = await db.execute(
-        base.order_by(Organization.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        select(Organization)
+        .where(Organization.user_id == user_id)
+        .order_by(Organization.created_at.desc())
     )
     orgs = result.scalars().all()
+    return [await _org_to_dict(org, db) for org in orgs]
 
-    out = []
-    for org in orgs:
-        wl_result = await db.execute(
-            select(Watchlist).where(Watchlist.organization_id == org.id)
-        )
-        watchlists = wl_result.scalars().all()
-        wl_list = []
-        for wl in watchlists:
-            co_count = (await db.execute(
-                select(func.count()).select_from(WatchlistCompany)
-                .where(WatchlistCompany.watchlist_id == wl.id)
-            )).scalar() or 0
-            wl_list.append({
-                "id": wl.id,
-                "name": wl.name,
-                "description": wl.description,
-                "created_at": wl.created_at.isoformat() if wl.created_at else None,
-                "company_count": co_count,
-            })
-        out.append({
-            "id": org.id,
-            "name": org.name,
-            "description": org.description,
-            "created_at": org.created_at.isoformat() if org.created_at else None,
-            "watchlists": wl_list,
-        })
-    return {"items": out, "total": total, "page": page, "page_size": page_size}
+
+@router.get("/organizations/{org_id}")
+async def get_organization(
+    org_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single organization by ID."""
+    await verify_org_ownership(org_id, current_user["user_id"], db)
+    org = (await db.execute(
+        select(Organization).where(Organization.id == org_id)
+    )).scalar_one()
+    return await _org_to_dict(org, db)
 
 
 @router.post("/organizations", status_code=status.HTTP_201_CREATED)
@@ -146,6 +158,29 @@ async def create_organization(
     }
 
 
+@router.patch("/organizations/{org_id}")
+async def update_organization(
+    org_id: int,
+    body: OrgPatch,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an organization's name and/or description."""
+    await verify_org_ownership(org_id, current_user["user_id"], db)
+    org = (await db.execute(
+        select(Organization).where(Organization.id == org_id)
+    )).scalar_one()
+
+    if body.name is not None:
+        org.name = body.name
+    if body.description is not None:
+        org.description = body.description
+
+    await db.commit()
+    await db.refresh(org)
+    return await _org_to_dict(org, db)
+
+
 @router.delete("/organizations/{org_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_organization(
     org_id: int,
@@ -160,7 +195,7 @@ async def delete_organization(
     await db.commit()
 
 
-# ── Watchlists ────────────────────────────────────────────────────────────────
+# ── Watchlists — CRUD ────────────────────────────────────────────────────────
 
 @router.get("/organizations/{org_id}/watchlists")
 async def list_watchlists(
@@ -168,26 +203,30 @@ async def list_watchlists(
     current_user: Annotated[dict, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
+    """List watchlists in an organization. Returns a flat array."""
     await verify_org_ownership(org_id, current_user["user_id"], db)
-
-    result = await db.execute(select(Watchlist).where(Watchlist.organization_id == org_id))
+    result = await db.execute(
+        select(Watchlist).where(Watchlist.organization_id == org_id)
+    )
     watchlists = result.scalars().all()
+    return [await _watchlist_to_dict(wl, db) for wl in watchlists]
 
-    out = []
-    for wl in watchlists:
-        co_count = (await db.execute(
-            select(func.count()).select_from(WatchlistCompany)
-            .where(WatchlistCompany.watchlist_id == wl.id)
-        )).scalar() or 0
-        out.append({
-            "id": wl.id,
-            "organization_id": wl.organization_id,
-            "name": wl.name,
-            "description": wl.description,
-            "created_at": wl.created_at.isoformat() if wl.created_at else None,
-            "company_count": co_count,
-        })
-    return out
+
+@router.get("/organizations/{org_id}/watchlists/{wl_id}")
+async def get_watchlist(
+    org_id: int,
+    wl_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single watchlist by ID."""
+    await verify_org_ownership(org_id, current_user["user_id"], db)
+    wl = (await db.execute(
+        select(Watchlist).where(Watchlist.id == wl_id, Watchlist.organization_id == org_id)
+    )).scalar_one_or_none()
+    if not wl:
+        raise HTTPException(status_code=404, detail="Watchlist not found")
+    return await _watchlist_to_dict(wl, db)
 
 
 @router.post("/organizations/{org_id}/watchlists", status_code=status.HTTP_201_CREATED)
@@ -215,6 +254,32 @@ async def create_watchlist(
     }
 
 
+@router.patch("/organizations/{org_id}/watchlists/{wl_id}")
+async def update_watchlist(
+    org_id: int,
+    wl_id: int,
+    body: WatchlistPatch,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a watchlist's name and/or description."""
+    await verify_org_ownership(org_id, current_user["user_id"], db)
+    wl = (await db.execute(
+        select(Watchlist).where(Watchlist.id == wl_id, Watchlist.organization_id == org_id)
+    )).scalar_one_or_none()
+    if not wl:
+        raise HTTPException(status_code=404, detail="Watchlist not found")
+
+    if body.name is not None:
+        wl.name = body.name
+    if body.description is not None:
+        wl.description = body.description
+
+    await db.commit()
+    await db.refresh(wl)
+    return await _watchlist_to_dict(wl, db)
+
+
 @router.delete("/organizations/{org_id}/watchlists/{wl_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_watchlist(
     org_id: int,
@@ -223,49 +288,52 @@ async def delete_watchlist(
     db: AsyncSession = Depends(get_db),
 ):
     await verify_org_ownership(org_id, current_user["user_id"], db)
-
-    wl_result = await db.execute(
+    wl = (await db.execute(
         select(Watchlist).where(Watchlist.id == wl_id, Watchlist.organization_id == org_id)
-    )
-    wl = wl_result.scalar_one_or_none()
+    )).scalar_one_or_none()
     if not wl:
         raise HTTPException(status_code=404, detail="Watchlist not found")
     await db.delete(wl)
     await db.commit()
 
 
-# ── Companies (tenant-isolated via verify_watchlist_ownership) ────────────────
+# ── Companies — CRUD (tenant-isolated via verify_watchlist_ownership) ─────────
 
 @router.get("/watchlists/{wl_id}/companies")
 async def list_companies(
     wl_id: int,
     current_user: Annotated[dict, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
 ):
-    """List companies in a watchlist (paginated, tenant-isolated)."""
+    """List companies in a watchlist. Returns a flat array."""
     await verify_watchlist_ownership(wl_id, current_user["user_id"], db)
-
-    base_filter = WatchlistCompany.watchlist_id == wl_id
-    total = (await db.execute(
-        select(func.count()).select_from(WatchlistCompany).where(base_filter)
-    )).scalar() or 0
-
     result = await db.execute(
         select(WatchlistCompany)
-        .where(base_filter)
+        .where(WatchlistCompany.watchlist_id == wl_id)
         .order_by(WatchlistCompany.added_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
     )
     companies = result.scalars().all()
-    return {
-        "items": [_company_to_dict(c) for c in companies],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    }
+    return [_company_to_dict(c) for c in companies]
+
+
+@router.get("/watchlists/{wl_id}/companies/{company_id}")
+async def get_company(
+    wl_id: int,
+    company_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single company by ID."""
+    await verify_watchlist_ownership(wl_id, current_user["user_id"], db)
+    c = (await db.execute(
+        select(WatchlistCompany).where(
+            WatchlistCompany.id == company_id,
+            WatchlistCompany.watchlist_id == wl_id,
+        )
+    )).scalar_one_or_none()
+    if not c:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return _company_to_dict(c)
 
 
 @router.post("/watchlists/{wl_id}/companies", status_code=status.HTTP_201_CREATED)
@@ -275,7 +343,7 @@ async def add_company(
     current_user: Annotated[dict, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a company to a watchlist (enforces plan limits, tenant-isolated)."""
+    """Add a company to a watchlist (enforces plan limits)."""
     user_id = current_user["user_id"]
     await verify_watchlist_ownership(wl_id, user_id, db)
     await enforce_company_limit(wl_id, user_id, db)
@@ -293,29 +361,6 @@ async def add_company(
     return _company_to_dict(c)
 
 
-@router.delete("/watchlists/{wl_id}/companies/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_company(
-    wl_id: int,
-    company_id: int,
-    current_user: Annotated[dict, Depends(get_current_user)],
-    db: AsyncSession = Depends(get_db),
-):
-    """Remove a company (tenant-isolated)."""
-    await verify_watchlist_ownership(wl_id, current_user["user_id"], db)
-
-    result = await db.execute(
-        select(WatchlistCompany).where(
-            WatchlistCompany.id == company_id,
-            WatchlistCompany.watchlist_id == wl_id,
-        )
-    )
-    c = result.scalar_one_or_none()
-    if not c:
-        raise HTTPException(status_code=404, detail="Company not found")
-    await db.delete(c)
-    await db.commit()
-
-
 @router.patch("/watchlists/{wl_id}/companies/{company_id}")
 async def update_company(
     wl_id: int,
@@ -324,16 +369,14 @@ async def update_company(
     current_user: Annotated[dict, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    """Inline-edit a company (tenant-isolated)."""
+    """Update a company's mutable fields."""
     await verify_watchlist_ownership(wl_id, current_user["user_id"], db)
-
-    result = await db.execute(
+    c = (await db.execute(
         select(WatchlistCompany).where(
             WatchlistCompany.id == company_id,
             WatchlistCompany.watchlist_id == wl_id,
         )
-    )
-    c = result.scalar_one_or_none()
+    )).scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=404, detail="Company not found")
 
@@ -347,6 +390,27 @@ async def update_company(
     await db.commit()
     await db.refresh(c)
     return _company_to_dict(c)
+
+
+@router.delete("/watchlists/{wl_id}/companies/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_company(
+    wl_id: int,
+    company_id: int,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a company from a watchlist."""
+    await verify_watchlist_ownership(wl_id, current_user["user_id"], db)
+    c = (await db.execute(
+        select(WatchlistCompany).where(
+            WatchlistCompany.id == company_id,
+            WatchlistCompany.watchlist_id == wl_id,
+        )
+    )).scalar_one_or_none()
+    if not c:
+        raise HTTPException(status_code=404, detail="Company not found")
+    await db.delete(c)
+    await db.commit()
 
 
 # ── CRM cross-watchlist endpoints ─────────────────────────────────────────────
@@ -383,10 +447,8 @@ async def list_org_empresas(
     tag: Optional[str] = None,
     watchlist_id: Optional[int] = None,
     q: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
 ):
-    """Cross-watchlist empresa view (paginated, tenant-isolated)."""
+    """Cross-watchlist empresa view. Returns a flat array."""
     await verify_org_ownership(org_id, current_user["user_id"], db)
 
     wl_result = await db.execute(select(Watchlist).where(Watchlist.organization_id == org_id))
@@ -394,19 +456,14 @@ async def list_org_empresas(
     wl_map = {wl.id: wl.name for wl in watchlists}
     wl_ids = list(wl_map.keys())
     if not wl_ids:
-        return {"items": [], "total": 0, "page": page, "page_size": page_size}
+        return []
 
     base = select(WatchlistCompany).where(WatchlistCompany.watchlist_id.in_(wl_ids))
-    count_base = select(func.count()).select_from(WatchlistCompany).where(
-        WatchlistCompany.watchlist_id.in_(wl_ids)
-    )
 
     if watchlist_id is not None:
         base = base.where(WatchlistCompany.watchlist_id == watchlist_id)
-        count_base = count_base.where(WatchlistCompany.watchlist_id == watchlist_id)
     if tag:
         base = base.where(WatchlistCompany.group_tag == tag)
-        count_base = count_base.where(WatchlistCompany.group_tag == tag)
     if q:
         like = f"%{q.lower()}%"
         text_filter = (
@@ -414,21 +471,11 @@ async def list_org_empresas(
             | func.lower(WatchlistCompany.razon_social).like(like)
         )
         base = base.where(text_filter)
-        count_base = count_base.where(text_filter)
 
-    total = (await db.execute(count_base)).scalar() or 0
-    result = await db.execute(
-        base.order_by(WatchlistCompany.added_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
+    result = await db.execute(base.order_by(WatchlistCompany.added_at.desc()))
     companies = result.scalars().all()
 
-    items = [
-        {
-            **_company_to_dict(c),
-            "watchlist_name": wl_map.get(c.watchlist_id, ""),
-        }
+    return [
+        {**_company_to_dict(c), "watchlist_name": wl_map.get(c.watchlist_id, "")}
         for c in companies
     ]
-    return {"items": items, "total": total, "page": page, "page_size": page_size}

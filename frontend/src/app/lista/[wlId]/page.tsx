@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { List, Plus, Download } from '@/lib/icons'
+import { List, Plus, Download, Trash2, Pencil, Check, X } from '@/lib/icons'
 import { Sidebar } from '@/components/Sidebar'
 import { Topbar } from '@/components/Topbar'
 import { AuthGuard } from '@/components/AuthGuard'
@@ -20,6 +20,11 @@ export default function ListaDetailPage() {
     const [addingCompany, setAddingCompany] = useState(false)
     const [newRfc, setNewRfc] = useState('')
     const [newRazon, setNewRazon] = useState('')
+
+    // Inline edit state
+    const [editingId, setEditingId] = useState<number | null>(null)
+    const [editRazon, setEditRazon] = useState('')
+    const [editTag, setEditTag] = useState('')
 
     useEffect(() => {
         if (!wlId) return
@@ -61,6 +66,35 @@ export default function ListaDetailPage() {
         } catch (err) {
             console.error('Error adding company:', err)
         }
+    }
+
+    const handleDeleteCompany = async (companyId: number) => {
+        if (!confirm('¿Eliminar esta empresa de la lista?')) return
+        try {
+            await apiClient.deleteCompany(wlId, companyId)
+            setCompanies((prev) => prev.filter((c) => c.id !== companyId))
+        } catch (err) {
+            console.error('Error deleting company:', err)
+        }
+    }
+
+    const handleSaveEdit = async (companyId: number) => {
+        try {
+            const updated = await apiClient.updateCompany(wlId, companyId, {
+                razon_social: editRazon.trim() || undefined,
+                group_tag: editTag.trim() || undefined,
+            })
+            setCompanies((prev) => prev.map((c) => c.id === companyId ? updated : c))
+            setEditingId(null)
+        } catch (err) {
+            console.error('Error updating company:', err)
+        }
+    }
+
+    const startEdit = (c: WatchlistCompany) => {
+        setEditingId(c.id)
+        setEditRazon(c.razon_social)
+        setEditTag(c.group_tag || '')
     }
 
     const handleExportCSV = () => {
@@ -224,14 +258,45 @@ export default function ListaDetailPage() {
                                                         <th className="text-left px-4 py-3 text-previa-muted font-semibold">Art. 69-B</th>
                                                         <th className="text-left px-4 py-3 text-previa-muted font-semibold">Art. 69</th>
                                                         <th className="text-left px-4 py-3 text-previa-muted font-semibold">Última Revisión</th>
+                                                        <th className="w-20 px-4 py-3"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {companies.map((c) => (
-                                                        <tr key={c.id} className="border-b border-previa-border/50 hover:bg-previa-surface-hover transition-colors">
+                                                        <tr key={c.id} className="border-b border-previa-border/50 hover:bg-previa-surface-hover transition-colors group">
                                                             <td className="px-4 py-2.5 text-previa-ink font-mono">{c.rfc}</td>
-                                                            <td className="px-4 py-2.5 text-previa-ink truncate max-w-[200px]">{c.razon_social}</td>
-                                                            <td className="px-4 py-2.5 text-previa-muted">{c.group_tag || '-'}</td>
+                                                            <td className="px-4 py-2.5 text-previa-ink max-w-[200px]">
+                                                                {editingId === c.id ? (
+                                                                    <input
+                                                                        value={editRazon}
+                                                                        onChange={(e) => setEditRazon(e.target.value)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') handleSaveEdit(c.id)
+                                                                            if (e.key === 'Escape') setEditingId(null)
+                                                                        }}
+                                                                        className="w-full bg-previa-background text-previa-ink text-xs px-2 py-0.5 rounded border border-previa-accent/50 focus:outline-none focus:ring-1 focus:ring-previa-accent"
+                                                                        autoFocus
+                                                                    />
+                                                                ) : (
+                                                                    <span className="truncate block">{c.razon_social}</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-previa-muted">
+                                                                {editingId === c.id ? (
+                                                                    <input
+                                                                        value={editTag}
+                                                                        onChange={(e) => setEditTag(e.target.value)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') handleSaveEdit(c.id)
+                                                                            if (e.key === 'Escape') setEditingId(null)
+                                                                        }}
+                                                                        className="w-full bg-previa-background text-previa-ink text-xs px-2 py-0.5 rounded border border-previa-accent/50 focus:outline-none focus:ring-1 focus:ring-previa-accent"
+                                                                        placeholder="Etiqueta..."
+                                                                    />
+                                                                ) : (
+                                                                    c.group_tag || '-'
+                                                                )}
+                                                            </td>
                                                             <td className="px-4 py-2.5">
                                                                 <span className={`text-xs font-medium ${
                                                                     c.risk_level === 'CRITICAL' ? 'text-red-400'
@@ -253,6 +318,45 @@ export default function ListaDetailPage() {
                                                                 {c.last_screened_at
                                                                     ? new Date(c.last_screened_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })
                                                                     : '-'}
+                                                            </td>
+                                                            <td className="px-4 py-2.5">
+                                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                                                    {editingId === c.id ? (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => handleSaveEdit(c.id)}
+                                                                                className="p-1 rounded text-green-400 hover:text-green-300 hover:bg-green-400/10"
+                                                                                title="Guardar"
+                                                                            >
+                                                                                <Check className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => setEditingId(null)}
+                                                                                className="p-1 rounded text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover"
+                                                                                title="Cancelar"
+                                                                            >
+                                                                                <X className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => startEdit(c)}
+                                                                                className="p-1 rounded text-previa-muted hover:text-previa-accent hover:bg-previa-accent/10"
+                                                                                title="Editar"
+                                                                            >
+                                                                                <Pencil className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleDeleteCompany(c.id)}
+                                                                                className="p-1 rounded text-previa-muted hover:text-red-400 hover:bg-red-400/10"
+                                                                                title="Eliminar"
+                                                                            >
+                                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     ))}

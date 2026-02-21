@@ -52,7 +52,7 @@ export default function HomePage() {
                                 Previa App
                             </h1>
                             <p className="text-previa-muted text-sm">
-                                Autonomous Fiscal Compliance Screening
+                                Evaluación inteligente del cumplimiento fiscal
                             </p>
                         </div>
 

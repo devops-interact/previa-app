@@ -149,7 +149,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="mt-8 text-center text-xs text-previa-muted">
-                        <p>Previa App — Autonomous Fiscal Compliance Screening</p>
+                        <p>Previa App — Evaluación inteligente del cumplimiento fiscal</p>
                     </div>
                 </div>
             </div>

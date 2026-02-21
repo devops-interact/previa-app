@@ -28,7 +28,7 @@ export function Topbar({
     const { openUploadModal } = useUploadModal()
 
     return (
-        <header className="min-h-14 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 sm:px-5 bg-previa-surface border-b border-previa-border flex-shrink-0">
+        <header className="min-h-14 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 sm:px-5 lg:px-6 bg-previa-surface border-b border-previa-border flex-shrink-0">
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-1.5 min-w-0 text-sm">
                 {breadcrumbs.map((crumb, i) => (

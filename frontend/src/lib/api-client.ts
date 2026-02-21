@@ -237,6 +237,24 @@ class APIClient {
         return response.json()
     }
 
+    async getOrganization(orgId: number): Promise<Organization> {
+        const response = await fetch(`${this.baseURL}/api/organizations/${orgId}`, {
+            headers: this.headers(),
+        })
+        if (!response.ok) throw new Error(await this.extractError(response))
+        return response.json()
+    }
+
+    async updateOrganization(orgId: number, patch: { name?: string; description?: string }): Promise<Organization> {
+        const response = await fetch(`${this.baseURL}/api/organizations/${orgId}`, {
+            method: 'PATCH',
+            headers: this.headers({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(patch),
+        })
+        if (!response.ok) throw new Error(await this.extractError(response))
+        return response.json()
+    }
+
     async deleteOrganization(orgId: number): Promise<void> {
         const response = await fetch(`${this.baseURL}/api/organizations/${orgId}`, {
             method: 'DELETE',
@@ -252,6 +270,24 @@ class APIClient {
             method: 'POST',
             headers: this.headers({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ name, description }),
+        })
+        if (!response.ok) throw new Error(await this.extractError(response))
+        return response.json()
+    }
+
+    async getWatchlist(orgId: number, wlId: number): Promise<Watchlist> {
+        const response = await fetch(`${this.baseURL}/api/organizations/${orgId}/watchlists/${wlId}`, {
+            headers: this.headers(),
+        })
+        if (!response.ok) throw new Error(await this.extractError(response))
+        return response.json()
+    }
+
+    async updateWatchlist(orgId: number, wlId: number, patch: { name?: string; description?: string }): Promise<Watchlist> {
+        const response = await fetch(`${this.baseURL}/api/organizations/${orgId}/watchlists/${wlId}`, {
+            method: 'PATCH',
+            headers: this.headers({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(patch),
         })
         if (!response.ok) throw new Error(await this.extractError(response))
         return response.json()
@@ -295,6 +331,14 @@ class APIClient {
         })
         if (!response.ok) throw new Error(await this.extractError(response))
         return response.json()
+    }
+
+    async deleteCompany(wlId: number, companyId: number): Promise<void> {
+        const response = await fetch(`${this.baseURL}/api/watchlists/${wlId}/companies/${companyId}`, {
+            method: 'DELETE',
+            headers: this.headers(),
+        })
+        if (!response.ok) throw new Error(await this.extractError(response))
     }
 
     // ── CRM — cross-watchlist empresa views ───────────────────────────────────

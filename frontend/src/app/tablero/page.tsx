@@ -218,7 +218,7 @@ export default function TableroPage() {
                     />
 
                     {scanProgress.active && (
-                        <div className="flex-shrink-0 px-4 pt-3 sm:px-5 sm:pt-4">
+                        <div className="flex-shrink-0 px-4 pt-3 sm:px-5 lg:px-6 sm:pt-4">
                             <div className="bg-previa-surface border border-previa-border rounded-xl px-4 py-3">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-xs font-semibold text-previa-ink">Verificando empresas ante el SAT...</span>
