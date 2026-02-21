@@ -17,6 +17,7 @@ import asyncio
 import base64
 import logging
 import re
+import ssl
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -72,10 +73,15 @@ async def check_certificate(rfc: str) -> Dict:
         return _error_result("Empty RFC")
 
     try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
+
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(30, connect=15),
             follow_redirects=True,
-            verify=False,
+            verify=ctx,
             headers=HEADERS,
         ) as client:
             page_data = await _load_portal_page(client)
