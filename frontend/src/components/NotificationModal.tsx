@@ -81,7 +81,7 @@ export function NotificationModal({ alerts, initialIndex = 0, onClose }: Notific
                 ${alert.oficio ? `<div class="section"><div class="label">Oficio</div><div class="value">${alert.oficio}</div></div>` : ''}
                 ${alert.authority ? `<div class="section"><div class="label">Autoridad</div><div class="value">${alert.authority}</div></div>` : ''}
                 <div class="section"><div class="label">Contexto Regulatorio</div><div class="context">${context}</div></div>
-                <footer>Generado por Previa App · ${new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</footer>
+                <footer>Generado por Prevify · ${new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</footer>
             </body>
             </html>
         `
@@ -216,7 +216,7 @@ export function NotificationModal({ alerts, initialIndex = 0, onClose }: Notific
                 {/* Footer actions */}
                 <div className="p-4 border-t border-previa-border flex items-center justify-between">
                     <p className="text-xs text-previa-muted">
-                        Generado por Previa App
+                        Generado por Prevify
                     </p>
                     <div className="flex space-x-2">
                         <button

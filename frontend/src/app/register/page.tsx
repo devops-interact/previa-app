@@ -86,7 +86,7 @@ export default function RegisterPage() {
                 <div className="max-w-md w-full">
                     <div className="text-center mb-8">
                         <h1 className="text-4xl font-bold text-previa-ink mb-2 tracking-tight">
-                            Previa App
+                            Prevify
                         </h1>
                         <p className="text-previa-muted text-sm">
                             Crear nueva cuenta
@@ -149,7 +149,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="mt-8 text-center text-xs text-previa-muted">
-                        <p>Previa App — Evaluación inteligente del cumplimiento fiscal</p>
+                        <p>Prevify — Evaluación inteligente del cumplimiento fiscal</p>
                     </div>
                 </div>
             </div>

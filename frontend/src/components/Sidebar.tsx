@@ -131,7 +131,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                 {/* Logo */}
                 <div className="p-4 sm:p-5 border-b border-previa-border flex items-center justify-between gap-3">
                     <Link href="/tablero" className="text-lg sm:text-xl font-bold text-previa-accent tracking-tight truncate" onClick={() => setMobileOpen(false)}>
-                        Previa App
+                        Prevify
                     </Link>
                     <button
                         type="button"

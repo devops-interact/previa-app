@@ -1,5 +1,5 @@
 /**
- * Previa App — API Client
+ * Prevify — API Client
  * Typed HTTP client for backend communication.
  *
  * Security:
@@ -31,13 +31,13 @@ function getApiBaseUrl(): string {
     const url = raw.trim().replace(/\/+$/, '')
     if (typeof window !== 'undefined' && url && !url.startsWith('http://') && !url.startsWith('https://')) {
         console.warn(
-            '[Previa App] NEXT_PUBLIC_API_URL should be a full URL (e.g. https://your-backend.up.railway.app). ' +
+            '[Prevify] NEXT_PUBLIC_API_URL should be a full URL (e.g. https://your-backend.up.railway.app). ' +
             'Using it as a path may cause 405 errors. Current value:', raw
         )
     }
     if (typeof window !== 'undefined' && url.includes('railway.internal')) {
         console.warn(
-            '[Previa App] railway.internal is only reachable from Railway. Set NEXT_PUBLIC_API_URL to your Railway public URL (e.g. https://xxx.up.railway.app).'
+            '[Prevify] railway.internal is only reachable from Railway. Set NEXT_PUBLIC_API_URL to your Railway public URL (e.g. https://xxx.up.railway.app).'
         )
     }
     return url || 'http://localhost:8000'

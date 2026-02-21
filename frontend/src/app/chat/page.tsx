@@ -102,7 +102,7 @@ export default function ChatPage() {
                                 </div>
                                 <div className="min-w-0">
                                     <h1 className="text-sm sm:text-base font-semibold text-previa-ink truncate">Agente Fiscal IA</h1>
-                                    <p className="text-xs text-previa-muted truncate">Previa App · Claude AI</p>
+                                    <p className="text-xs text-previa-muted truncate">Prevify · Claude AI</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
@@ -142,7 +142,7 @@ export default function ChatPage() {
                                         <Bot className="w-7 h-7 sm:w-8 sm:h-8 text-previa-accent" />
                                     </div>
                                     <h2 className="text-xl sm:text-2xl font-bold text-previa-ink mb-2">
-                                        Agente Fiscal Previa App
+                                        Agente Fiscal Prevify
                                     </h2>
                                     <p className="text-previa-muted text-sm leading-relaxed max-w-md mx-auto px-1">
                                         Soy tu asistente especializado en cumplimiento fiscal mexicano. Puedo ayudarte a revisar proveedores ante el SAT, interpretar alertas y gestionar tus watchlists.

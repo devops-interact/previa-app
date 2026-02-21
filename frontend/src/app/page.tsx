@@ -49,7 +49,7 @@ export default function HomePage() {
                         {/* Branding */}
                         <div className="text-center mb-8">
                             <h1 className="text-4xl font-bold text-previa-ink mb-2 tracking-tight">
-                                Previa App
+                                Prevify
                             </h1>
                             <p className="text-previa-muted text-sm">
                                 Evaluación inteligente del cumplimiento fiscal

@@ -1,5 +1,5 @@
 /**
- * Previa App — TypeScript Type Definitions
+ * Prevify — TypeScript Type Definitions
  * Shared interfaces matching backend Pydantic models
  */
 
