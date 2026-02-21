@@ -14,7 +14,11 @@ def dispatch_scan(scan_id: str) -> None:
     Dispatch a scan processing job. Uses Celery if available,
     otherwise falls back to an asyncio background task.
     """
-    from app.tasks.celery_app import celery_app, is_celery_available
+    try:
+        from app.tasks.celery_app import celery_app, is_celery_available
+    except Exception:
+        celery_app = None
+        is_celery_available = lambda: False
 
     if celery_app and is_celery_available():
         _process_scan_celery.delay(scan_id)
