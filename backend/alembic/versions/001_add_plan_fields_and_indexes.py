@@ -15,13 +15,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # User plan fields
-    op.add_column("users", sa.Column("full_name", sa.String(), nullable=True))
-    op.add_column("users", sa.Column("plan", sa.String(), server_default="free", nullable=True))
-    op.add_column("users", sa.Column("stripe_customer_id", sa.String(), nullable=True))
-    op.add_column("users", sa.Column("stripe_subscription_id", sa.String(), nullable=True))
-    op.add_column("users", sa.Column("plan_expires_at", sa.DateTime(), nullable=True))
-    op.create_index("ix_users_stripe_customer_id", "users", ["stripe_customer_id"], unique=True)
+    # User plan fields (idempotent: skip if column/index already exists)
+    for col_name, col_def in [
+        ("full_name", sa.Column("full_name", sa.String(), nullable=True)),
+        ("plan", sa.Column("plan", sa.String(), server_default="free", nullable=True)),
+        ("stripe_customer_id", sa.Column("stripe_customer_id", sa.String(), nullable=True)),
+        ("stripe_subscription_id", sa.Column("stripe_subscription_id", sa.String(), nullable=True)),
+        ("plan_expires_at", sa.Column("plan_expires_at", sa.DateTime(), nullable=True)),
+    ]:
+        try:
+            op.add_column("users", col_def)
+        except Exception:
+            pass
+    try:
+        op.create_index("ix_users_stripe_customer_id", "users", ["stripe_customer_id"], unique=True)
+    except Exception:
+        pass
 
     # WatchlistCompany compliance fields (idempotent for existing DBs)
     for col_name, col_type, default in [
