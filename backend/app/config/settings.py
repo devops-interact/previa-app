@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     demo_user_role: str = "analyst"
 
     # CORS
-    cors_allowed_origins: str = "http://localhost:3000,http://localhost:3001,https://previa-app.vercel.app"
+    cors_allowed_origins: str = "http://localhost:3000,http://localhost:3001,https://previa-app.vercel.app,https://prevify-mx.vercel.app"
 
     @property
     def cors_origins_list(self) -> List[str]:
