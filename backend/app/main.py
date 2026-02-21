@@ -76,57 +76,46 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Previa App backend (env=%s)...", ENVIRONMENT)
-    logger.info("Database: %s", settings.sqlalchemy_database_url)
 
-    db_ready = False
-    try:
-        await init_db()
-        logger.info("Database tables ensured")
-        db_ready = True
-    except Exception as e:
-        logger.error("Database init failed — app will start in degraded mode: %s", e)
+    await init_db()
+    logger.info("Database tables ensured")
 
-    if db_ready:
-        if ENVIRONMENT == "development":
-            from app.data.db.session import AsyncSessionLocal
-            from app.data.db.models import User
-            from app.api.deps import hash_password
-            from sqlalchemy import select
+    from app.data.db.session import AsyncSessionLocal
+    from app.data.db.models import User, SATDataset
+    from app.api.deps import hash_password
+    from sqlalchemy import select
 
-            try:
-                async with AsyncSessionLocal() as db:
-                    r = await db.execute(select(User).where(User.email == settings.demo_user_email))
-                    if r.scalar_one_or_none() is None:
-                        demo_user = User(
-                            email=settings.demo_user_email,
-                            hashed_password=hash_password(settings.demo_user_password),
-                            full_name="Demo User",
-                            role=settings.demo_user_role,
-                            plan="company",
-                        )
-                        db.add(demo_user)
-                        await db.commit()
-                        logger.info("Demo user created: %s", settings.demo_user_email)
-                    else:
-                        logger.info("Demo user already exists: %s", settings.demo_user_email)
-            except Exception as e:
-                logger.error("Demo user seeding failed: %s", e)
-
-        from app.data.db.session import AsyncSessionLocal
-        from app.data.db.models import SATDataset
-        from sqlalchemy import select
-
+    if ENVIRONMENT == "development":
         try:
             async with AsyncSessionLocal() as db:
-                for ds_name in ("lista_69b", "art69_creditos_firmes", "art69_no_localizados",
-                                "art69_creditos_cancelados", "art69_sentencias", "art69_bis", "art49_bis"):
-                    r = await db.execute(select(SATDataset).where(SATDataset.dataset_name == ds_name))
-                    if r.scalar_one_or_none() is None:
-                        db.add(SATDataset(dataset_name=ds_name, last_updated=None, row_count=0))
-                await db.commit()
-                logger.info("SAT dataset sentinel rows ensured")
+                r = await db.execute(select(User).where(User.email == settings.demo_user_email))
+                if r.scalar_one_or_none() is None:
+                    demo_user = User(
+                        email=settings.demo_user_email,
+                        hashed_password=hash_password(settings.demo_user_password),
+                        full_name="Demo User",
+                        role=settings.demo_user_role,
+                        plan="company",
+                    )
+                    db.add(demo_user)
+                    await db.commit()
+                    logger.info("Demo user created: %s", settings.demo_user_email)
+                else:
+                    logger.info("Demo user already exists: %s", settings.demo_user_email)
         except Exception as e:
-            logger.error("SAT dataset seeding failed: %s", e)
+            logger.error("Demo user seeding failed: %s", e)
+
+    try:
+        async with AsyncSessionLocal() as db:
+            for ds_name in ("lista_69b", "art69_creditos_firmes", "art69_no_localizados",
+                            "art69_creditos_cancelados", "art69_sentencias", "art69_bis", "art49_bis"):
+                r = await db.execute(select(SATDataset).where(SATDataset.dataset_name == ds_name))
+                if r.scalar_one_or_none() is None:
+                    db.add(SATDataset(dataset_name=ds_name, last_updated=None, row_count=0))
+            await db.commit()
+            logger.info("SAT dataset sentinel rows ensured")
+    except Exception as e:
+        logger.error("SAT dataset seeding failed: %s", e)
 
     try:
         from app.scheduler import start_scheduler, shutdown_scheduler
