@@ -33,6 +33,31 @@ def upgrade() -> None:
         "ON watchlist_companies (watchlist_id, rfc)"
     ))
 
+    conn.execute(text("""
+        DELETE FROM watchlist_companies WHERE watchlist_id IN (
+            SELECT w.id FROM watchlists w
+            JOIN organizations o ON w.organization_id = o.id
+            JOIN users u ON o.user_id = u.id
+            WHERE u.email = 'user@example.com'
+        )
+    """))
+    conn.execute(text("""
+        DELETE FROM watchlists WHERE organization_id IN (
+            SELECT o.id FROM organizations o
+            JOIN users u ON o.user_id = u.id
+            WHERE u.email = 'user@example.com'
+        )
+    """))
+    conn.execute(text("""
+        DELETE FROM scan_jobs WHERE user_id IN (
+            SELECT id FROM users WHERE email = 'user@example.com'
+        )
+    """))
+    conn.execute(text("""
+        DELETE FROM organizations WHERE user_id IN (
+            SELECT id FROM users WHERE email = 'user@example.com'
+        )
+    """))
     conn.execute(text(
         "DELETE FROM users WHERE email = 'user@example.com'"
     ))
