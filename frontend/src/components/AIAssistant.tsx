@@ -304,7 +304,8 @@ export function AIAssistant({ context, onScanComplete }: AIAssistantProps = {}) 
                 } else {
                     pollRef.current = setTimeout(poll, 2000)
                 }
-            } catch {
+            } catch (err) {
+                console.error('[Prevify] Scan poll error:', err)
                 setScanState(null)
                 appendMessage({ role: 'assistant', content: '❌ Error al consultar el estado del análisis.' })
             }

@@ -187,7 +187,11 @@ class APIClient {
             throw new Error(detail)
         }
 
-        return response.json()
+        const raw = await response.json()
+        return {
+            ...raw,
+            results: Array.isArray(raw.results) ? raw.results : (raw.results?.items ?? []),
+        }
     }
 
     async downloadReport(scanId: string): Promise<Blob> {
