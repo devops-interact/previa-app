@@ -8,8 +8,10 @@ import logging
 import re
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, field_validator
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +22,7 @@ from app.data.db.session import get_db
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["auth"])
+limiter = Limiter(key_func=get_remote_address)
 
 _PASSWORD_MIN_LENGTH = 8
 
@@ -42,8 +45,14 @@ class RegisterRequest(BaseModel):
     def password_strength(cls, v: str) -> str:
         if len(v) < _PASSWORD_MIN_LENGTH:
             raise ValueError(f"La contraseña debe tener al menos {_PASSWORD_MIN_LENGTH} caracteres")
-        if not re.search(r"[A-Za-z]", v) or not re.search(r"\d", v):
-            raise ValueError("La contraseña debe contener letras y números")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("La contraseña debe contener al menos una letra minúscula")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("La contraseña debe contener al menos una letra mayúscula")
+        if not re.search(r"\d", v):
+            raise ValueError("La contraseña debe contener al menos un número")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=\[\]\\;'/`~]", v):
+            raise ValueError("La contraseña debe contener al menos un carácter especial")
         return v
 
     @field_validator("full_name")
@@ -70,7 +79,9 @@ class TokenResponse(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Create a new user account",
 )
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     body: RegisterRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
@@ -120,7 +131,9 @@ async def register(
     response_model=TokenResponse,
     summary="Authenticate and receive a JWT access token",
 )
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     body: LoginRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:

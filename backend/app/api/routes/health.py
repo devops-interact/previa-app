@@ -10,6 +10,7 @@ from datetime import datetime
 from app.data.db.session import get_db
 from app.data.db.models import SATDataset, SweepMetadata
 from app.config.settings import settings
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -28,7 +29,10 @@ async def health_check():
 
 
 @router.get("/health/detailed")
-async def health_check_detailed(db: AsyncSession = Depends(get_db)):
+async def health_check_detailed(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     """
     Detailed readiness probe with DB connectivity and data freshness.
     """

@@ -130,6 +130,7 @@ async def create_scan(
         scan_id = str(uuid.uuid4())
         scan_job = ScanJob(
             scan_id=scan_id,
+            user_id=current_user.get("user_id"),
             filename=file.filename,
             status="pending",
             total_entities=len(entities_data),
@@ -210,7 +211,10 @@ async def get_scan_status(
 
     Requires: Authorization: Bearer <token>
     """
-    result = await db.execute(select(ScanJob).where(ScanJob.scan_id == scan_id))
+    uid = current_user.get("user_id")
+    result = await db.execute(
+        select(ScanJob).where(ScanJob.scan_id == scan_id, ScanJob.user_id == uid)
+    )
     scan_job = result.scalar_one_or_none()
 
     if not scan_job:
@@ -239,7 +243,10 @@ async def download_report(
 
     Requires: Authorization: Bearer <token>
     """
-    result = await db.execute(select(ScanJob).where(ScanJob.scan_id == scan_id))
+    uid = current_user.get("user_id")
+    result = await db.execute(
+        select(ScanJob).where(ScanJob.scan_id == scan_id, ScanJob.user_id == uid)
+    )
     scan_job = result.scalar_one_or_none()
 
     if not scan_job:
@@ -267,7 +274,10 @@ async def get_scan_results(
     Return per-entity screening results for a scan job (paginated).
     Available while the scan is in progress (partial) and after completion.
     """
-    result = await db.execute(select(ScanJob).where(ScanJob.scan_id == scan_id))
+    uid = current_user.get("user_id")
+    result = await db.execute(
+        select(ScanJob).where(ScanJob.scan_id == scan_id, ScanJob.user_id == uid)
+    )
     scan_job = result.scalar_one_or_none()
     if not scan_job:
         raise HTTPException(status_code=404, detail="Scan not found")

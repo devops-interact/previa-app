@@ -37,7 +37,7 @@ class Organization(Base):
     __tablename__ = "organizations"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -52,7 +52,7 @@ class Watchlist(Base):
     __tablename__ = "watchlists"
 
     id = Column(Integer, primary_key=True, index=True)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -97,7 +97,7 @@ class ScanJob(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     scan_id = Column(String, unique=True, index=True, nullable=False)  # UUID
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     filename = Column(String)
     status = Column(String, default="pending")  # pending, processing, completed, failed
     progress = Column(Float, default=0.0)  # 0.0 to 100.0
@@ -117,7 +117,7 @@ class Entity(Base):
     __tablename__ = "entities"
     
     id = Column(Integer, primary_key=True, index=True)
-    scan_job_id = Column(Integer, ForeignKey("scan_jobs.id"))
+    scan_job_id = Column(Integer, ForeignKey("scan_jobs.id"), index=True)
     rfc = Column(String, index=True, nullable=False)
     razon_social = Column(String, nullable=False)
     tipo_persona = Column(String, nullable=True)  # fisica, moral
@@ -136,7 +136,7 @@ class ScreeningResult(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     entity_id = Column(Integer, ForeignKey("entities.id"), unique=True)
-    scan_job_id = Column(Integer, ForeignKey("scan_jobs.id"))
+    scan_job_id = Column(Integer, ForeignKey("scan_jobs.id"), index=True)
     
     # Overall risk
     risk_score = Column(Integer, default=0)
@@ -176,7 +176,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     
     id = Column(Integer, primary_key=True, index=True)
-    result_id = Column(Integer, ForeignKey("screening_results.id"))
+    result_id = Column(Integer, ForeignKey("screening_results.id"), index=True)
     source = Column(String, nullable=False)  # sat_69b, sat_69, cert_portal, reachcore_api
     query = Column(String, nullable=False)  # RFC queried
     response_summary = Column(Text, nullable=True)

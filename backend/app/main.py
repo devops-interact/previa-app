@@ -77,6 +77,14 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 async def lifespan(app: FastAPI):
     logger.info("Starting Previa App backend (env=%s)...", ENVIRONMENT)
 
+    if settings.jwt_secret_key.startswith("CHANGE-ME"):
+        if ENVIRONMENT == "production":
+            raise RuntimeError(
+                "JWT_SECRET_KEY is still the default placeholder. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+            )
+        logger.warning("JWT_SECRET_KEY is using the default placeholder — NOT safe for production")
+
     await init_db()
     logger.info("Database tables ensured")
 
@@ -85,7 +93,7 @@ async def lifespan(app: FastAPI):
     from app.api.deps import hash_password
     from sqlalchemy import select
 
-    if ENVIRONMENT == "development":
+    if ENVIRONMENT == "development" and settings.environment == "development":
         try:
             async with AsyncSessionLocal() as db:
                 r = await db.execute(select(User).where(User.email == settings.demo_user_email))
@@ -95,7 +103,7 @@ async def lifespan(app: FastAPI):
                         hashed_password=hash_password(settings.demo_user_password),
                         full_name="Demo User",
                         role=settings.demo_user_role,
-                        plan="company",
+                        plan="free",
                     )
                     db.add(demo_user)
                     await db.commit()
@@ -104,6 +112,17 @@ async def lifespan(app: FastAPI):
                     logger.info("Demo user already exists: %s", settings.demo_user_email)
         except Exception as e:
             logger.error("Demo user seeding failed: %s", e)
+    elif ENVIRONMENT == "production":
+        try:
+            async with AsyncSessionLocal() as db:
+                r = await db.execute(select(User).where(User.email == "user@example.com"))
+                demo = r.scalar_one_or_none()
+                if demo:
+                    await db.delete(demo)
+                    await db.commit()
+                    logger.info("Removed demo user from production database")
+        except Exception as e:
+            logger.error("Demo user cleanup failed: %s", e)
 
     try:
         async with AsyncSessionLocal() as db:
