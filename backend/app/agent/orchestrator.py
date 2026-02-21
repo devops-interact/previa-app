@@ -33,8 +33,8 @@ async def process_scan(scan_id: str):
     logger.info(f"Starting scan processing for {scan_id}")
     
     async with AsyncSessionLocal() as db:
+        scan_job = None
         try:
-            # Get scan job
             result = await db.execute(
                 select(ScanJob).where(ScanJob.scan_id == scan_id)
             )

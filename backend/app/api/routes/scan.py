@@ -12,7 +12,7 @@ import uuid
 import logging
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -22,7 +22,7 @@ from app.data.db.models import ScanJob, Entity, Organization, Watchlist, Watchli
 from app.api.schemas import ScanCreateResponse, ScanStatusResponse, ScanResultsResponse, EntityResult
 from app.data.ingest.file_parser import parse_upload_file
 from app.agent.orchestrator import process_scan
-from app.tasks.scan_tasks import dispatch_scan
+import asyncio
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -91,7 +91,6 @@ async def _validate_upload(file: UploadFile) -> bytes:
 
 @router.post("/scan", response_model=ScanCreateResponse)
 async def create_scan(
-    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dict, Depends(get_current_user)],
     file: UploadFile = File(...),
@@ -183,7 +182,7 @@ async def create_scan(
         await db.commit()
         logger.info("Created scan job %s with %d entities", scan_id, len(entities_data))
 
-        background_tasks.add_task(dispatch_scan, scan_id)
+        asyncio.create_task(process_scan(scan_id))
 
         return ScanCreateResponse(
             scan_id=scan_id,
