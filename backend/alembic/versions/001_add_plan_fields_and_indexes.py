@@ -3,10 +3,13 @@
 Revision ID: 001
 Revises: None
 Create Date: 2026-02-17
+
+Uses raw SQL with IF NOT EXISTS / IF EXISTS so migration is idempotent
+and does not abort the transaction when columns already exist.
 """
 from typing import Sequence, Union
 from alembic import op
-import sqlalchemy as sa
+from sqlalchemy import text
 
 revision: str = "001"
 down_revision: Union[str, None] = None
@@ -15,54 +18,48 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # User plan fields (idempotent: skip if column/index already exists)
-    for col_name, col_def in [
-        ("full_name", sa.Column("full_name", sa.String(), nullable=True)),
-        ("plan", sa.Column("plan", sa.String(), server_default="free", nullable=True)),
-        ("stripe_customer_id", sa.Column("stripe_customer_id", sa.String(), nullable=True)),
-        ("stripe_subscription_id", sa.Column("stripe_subscription_id", sa.String(), nullable=True)),
-        ("plan_expires_at", sa.Column("plan_expires_at", sa.DateTime(), nullable=True)),
-    ]:
-        try:
-            op.add_column("users", col_def)
-        except Exception:
-            pass
-    try:
-        op.create_index("ix_users_stripe_customer_id", "users", ["stripe_customer_id"], unique=True)
-    except Exception:
-        pass
+    conn = op.get_bind()
 
-    # WatchlistCompany compliance fields (idempotent for existing DBs)
-    for col_name, col_type, default in [
-        ("risk_level", sa.String(), None),
-        ("risk_score", sa.Integer(), None),
-        ("art_69b_status", sa.String(), None),
-        ("art_69_categories", sa.JSON(), None),
-        ("art_69_bis_found", sa.Boolean(), False),
-        ("art_49_bis_found", sa.Boolean(), False),
-        ("last_screened_at", sa.DateTime(), None),
+    # User plan fields (IF NOT EXISTS — no-op when column exists, no transaction abort)
+    for col_name, col_sql in [
+        ("full_name", "ADD COLUMN IF NOT EXISTS full_name VARCHAR"),
+        ("plan", "ADD COLUMN IF NOT EXISTS plan VARCHAR DEFAULT 'free'"),
+        ("stripe_customer_id", "ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR"),
+        ("stripe_subscription_id", "ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR"),
+        ("plan_expires_at", "ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMP"),
     ]:
-        try:
-            op.add_column("watchlist_companies", sa.Column(col_name, col_type, server_default=str(default) if default is not None else None, nullable=True))
-        except Exception:
-            pass
+        conn.execute(text(f"ALTER TABLE users {col_sql}"))
 
-    # PublicNotice last_seen_at
-    try:
-        op.add_column("public_notices", sa.Column("last_seen_at", sa.DateTime(), nullable=True))
-    except Exception:
-        pass
+    conn.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_stripe_customer_id ON users (stripe_customer_id)"
+    ))
 
-    # Performance indexes (wrapped in try/except for idempotency)
-    for idx_name, table, cols in [
-        ("ix_wc_watchlist_rfc", "watchlist_companies", ["watchlist_id", "rfc"]),
-        ("ix_pn_rfc_article", "public_notices", ["rfc", "article_type"]),
-        ("ix_cn_rfc_published", "company_news", ["rfc", "published_at"]),
+    # WatchlistCompany compliance fields
+    for col_name, col_sql in [
+        ("risk_level", "ADD COLUMN IF NOT EXISTS risk_level VARCHAR"),
+        ("risk_score", "ADD COLUMN IF NOT EXISTS risk_score INTEGER"),
+        ("art_69b_status", "ADD COLUMN IF NOT EXISTS art_69b_status VARCHAR"),
+        ("art_69_categories", "ADD COLUMN IF NOT EXISTS art_69_categories JSON"),
+        ("art_69_bis_found", "ADD COLUMN IF NOT EXISTS art_69_bis_found BOOLEAN DEFAULT FALSE"),
+        ("art_49_bis_found", "ADD COLUMN IF NOT EXISTS art_49_bis_found BOOLEAN DEFAULT FALSE"),
+        ("last_screened_at", "ADD COLUMN IF NOT EXISTS last_screened_at TIMESTAMP"),
     ]:
-        try:
-            op.create_index(idx_name, table, cols)
-        except Exception:
-            pass
+        conn.execute(text(f"ALTER TABLE watchlist_companies {col_sql}"))
+
+    conn.execute(text(
+        "ALTER TABLE public_notices ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP"
+    ))
+
+    # Performance indexes
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_wc_watchlist_rfc ON watchlist_companies (watchlist_id, rfc)"
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pn_rfc_article ON public_notices (rfc, article_type)"
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_cn_rfc_published ON company_news (rfc, published_at)"
+    ))
 
 
 def downgrade() -> None:
