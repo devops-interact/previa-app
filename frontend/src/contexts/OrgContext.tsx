@@ -1,8 +1,11 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import { apiClient } from '@/lib/api-client'
 import type { Organization, Watchlist } from '@/types'
+
+const PUBLIC_PATHS = new Set(['/', '/register'])
 
 interface OrgContextValue {
     organizations: Organization[]
@@ -19,6 +22,7 @@ interface OrgContextValue {
 const OrgContext = createContext<OrgContextValue | null>(null)
 
 export function OrgProvider({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname()
     const [organizations, setOrganizations] = useState<Organization[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -28,13 +32,18 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
             const orgs = await apiClient.listOrganizations()
             setOrganizations(orgs)
         } catch {
-            // auth may not be ready
+            // auth may not be ready or token expired
         } finally {
             setLoading(false)
         }
     }, [])
 
-    useEffect(() => { refresh() }, [refresh])
+    // Refetch when navigating to authenticated routes (e.g. after login)
+    useEffect(() => {
+        if (pathname && !PUBLIC_PATHS.has(pathname)) {
+            refresh()
+        }
+    }, [pathname, refresh])
 
     const handleOrgCreated = useCallback((org: Organization) => {
         setOrganizations((prev) => [...prev, org])
