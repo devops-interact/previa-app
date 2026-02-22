@@ -32,11 +32,6 @@ class Settings(BaseSettings):
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return url
 
-    # Demo Account (only used when ENVIRONMENT=development)
-    demo_user_email: str = "user@example.com"
-    demo_user_password: str = "1234"
-    demo_user_role: str = "analyst"
-
     # CORS
     cors_allowed_origins: str = "http://localhost:3000,http://localhost:3001,https://previa-app.vercel.app,https://prevify-mx.vercel.app"
 
