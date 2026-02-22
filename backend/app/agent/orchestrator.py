@@ -137,10 +137,11 @@ async def process_entity(entity: Entity, scan_job: ScanJob, db: AsyncSession):
         if cert_status_enum == CertificateStatus.EXPIRED:
             cert_exp_days = cert_expired_days(cert_result.get("valid_to"))
 
-    # Calculate risk
+    # Calculate risk (fixed severity scale, no numeric scoring)
     findings = {
         "art_69b_status": art_69b_result.get("status", Art69BStatus.NOT_FOUND),
         "art_69_categories": art_69_categories,
+        "art_49_bis_found": art_49_bis_result.get("found", False),
         "cert_status": cert_status_enum,
         "cert_expired_days": cert_exp_days,
     }
@@ -164,7 +165,9 @@ async def process_entity(entity: Entity, scan_job: ScanJob, db: AsyncSession):
         # Art. 69
         art_69_found=art_69_result.get("found", False),
         art_69_categories=art_69_result.get("categories", []),
-        
+        art_69_bis_found=art_69_bis_result.get("found", False),
+        art_49_bis_found=art_49_bis_result.get("found", False),
+
         # Certificates
         cert_checked=cert_result.get("checked", False),
         cert_status=(

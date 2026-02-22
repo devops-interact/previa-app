@@ -154,7 +154,9 @@ class ScreeningResult(Base):
     # Art. 69 findings (stored as JSON array)
     art_69_found = Column(Boolean, default=False)
     art_69_categories = Column(JSON, nullable=True)  # List of category objects
-    
+    art_69_bis_found = Column(Boolean, default=False)
+    art_49_bis_found = Column(Boolean, default=False)
+
     # Certificate findings
     cert_checked = Column(Boolean, default=False)
     cert_status = Column(String, nullable=True)  # active, expired, revoked, not_found

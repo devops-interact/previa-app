@@ -322,8 +322,8 @@ async def get_scan_results(
                 art_69b_dof_url=sr.art_69b_dof_url if sr else None,
                 art_69_found=sr.art_69_found if sr else False,
                 art_69_categories=sr.art_69_categories if sr else [],
-                art_69_bis_found=False,
-                art_49_bis_found=False,
+                art_69_bis_found=getattr(sr, "art_69_bis_found", False) if sr else False,
+                art_49_bis_found=getattr(sr, "art_49_bis_found", False) if sr else False,
                 screened_at=sr.screened_at if sr else None,
             )
         )

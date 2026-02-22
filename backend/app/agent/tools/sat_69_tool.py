@@ -64,6 +64,7 @@ _CATEGORY_MAP = {
     "no_localizado": Art69Category.NO_LOCALIZADO.value,
     "credito_cancelado": Art69Category.CREDITO_CANCELADO.value,
     "sentencia_condenatoria": Art69Category.SENTENCIA_CONDENATORIA.value,
+    "csd_sin_efectos": Art69Category.CSD_SIN_EFECTOS.value,
 }
 
 
