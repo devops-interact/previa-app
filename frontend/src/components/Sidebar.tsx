@@ -44,7 +44,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
     } = useOrg()
 
     const [expandedOrgs, setExpandedOrgs] = useState<Set<number>>(new Set())
-    const [showOrgModal, setShowOrgModal] = useState(false)
+    const [orgModal, setOrgModal] = useState<{ open: boolean; initialTab?: 'list' | 'create'; initialWlOrgId?: number }>({ open: false })
     const [activeWatchlist, setActiveWatchlist] = useState<number | null>(null)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [sweepStatus, setSweepStatus] = useState<{
@@ -184,9 +184,9 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                 Organizaciones
                             </span>
                             <button
-                                onClick={() => setShowOrgModal(true)}
+                                onClick={() => setOrgModal({ open: true, initialTab: 'create' })}
                                 className="p-1 rounded-md hover:bg-previa-surface-hover text-previa-muted hover:text-previa-accent transition-colors"
-                                title="Gestionar organizaciones"
+                                title="Nueva organización"
                             >
                                 <Plus className="w-3.5 h-3.5" />
                             </button>
@@ -200,7 +200,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                             </div>
                         ) : organizations.length === 0 ? (
                             <button
-                                onClick={() => setShowOrgModal(true)}
+                                onClick={() => setOrgModal({ open: true, initialTab: 'create' })}
                                 className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-surface-hover transition-all border border-dashed border-previa-border mt-1"
                             >
                                 <Plus className="w-3.5 h-3.5" />
@@ -267,7 +267,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
                                                 <li>
                                                     <button
-                                                        onClick={() => setShowOrgModal(true)}
+                                                        onClick={() => setOrgModal({ open: true, initialTab: 'list', initialWlOrgId: org.id })}
                                                         className="w-full flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-surface-hover transition-colors"
                                                     >
                                                         <Plus className="w-3 h-3" />
@@ -344,10 +344,12 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                 </div>
             </aside>
 
-            {showOrgModal && (
+            {orgModal.open && (
                 <OrganizationModal
                     organizations={organizations}
-                    onClose={() => setShowOrgModal(false)}
+                    initialTab={orgModal.initialTab}
+                    initialWlOrgId={orgModal.initialWlOrgId}
+                    onClose={() => setOrgModal({ open: false })}
                     onCreated={handleOrgCreated}
                     onDeleted={handleOrgDeleted}
                     onOrgUpdated={handleOrgUpdated}

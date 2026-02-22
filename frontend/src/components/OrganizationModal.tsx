@@ -7,6 +7,10 @@ import { apiClient } from '@/lib/api-client'
 
 interface OrganizationModalProps {
     organizations: Organization[]
+    /** Open directly on "Nueva Organización" tab */
+    initialTab?: 'list' | 'create'
+    /** Pre-open "new watchlist" form for this org (list tab) */
+    initialWlOrgId?: number | null
     onClose: () => void
     onCreated: (org: Organization) => void
     onDeleted: (orgId: number) => void
@@ -18,6 +22,8 @@ interface OrganizationModalProps {
 
 export function OrganizationModal({
     organizations,
+    initialTab = 'list',
+    initialWlOrgId = null,
     onClose,
     onCreated,
     onDeleted,
@@ -26,13 +32,13 @@ export function OrganizationModal({
     onWatchlistDeleted,
     onWatchlistUpdated,
 }: OrganizationModalProps) {
-    const [tab, setTab] = useState<'list' | 'create'>('list')
+    const [tab, setTab] = useState<'list' | 'create'>(initialTab)
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    const [wlCreating, setWlCreating] = useState<number | null>(null)
+    const [wlCreating, setWlCreating] = useState<number | null>(initialWlOrgId ?? null)
     const [wlName, setWlName] = useState('')
 
     // Inline rename state
