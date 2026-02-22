@@ -8,34 +8,34 @@
 
 body {
   font-family: var(--font-jetbrains-mono), monospace;
-  background-color: #050505;
-  color: #e4e4e7;
+  background-color: #fafafa;
+  color: #18181b;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── Selection ─────────────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(113, 113, 122, 0.35);
-  color: #e4e4e7;
+  background: rgba(113, 113, 122, 0.25);
+  color: #18181b;
 }
 
 /* ── Focus-visible ring ───────────────────────────────────────────────────── */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(113, 113, 122, 0.5);
+  box-shadow: 0 0 0 2px rgba(113, 113, 122, 0.4);
   border-radius: 6px;
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar         { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track   { background: transparent; }
-::-webkit-scrollbar-thumb   { background: #27272a; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+::-webkit-scrollbar-thumb   { background: #d4d4d8; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
 
 /* Hide scrollbar in nav panels unless hovered */
 aside ::-webkit-scrollbar-thumb { background: transparent; }
-aside:hover ::-webkit-scrollbar-thumb { background: #27272a; }
+aside:hover ::-webkit-scrollbar-thumb { background: #d4d4d8; }
 
 /* ── Utility layer ─────────────────────────────────────────────────────────── */
 @layer utilities {
@@ -71,19 +71,6 @@ aside:hover ::-webkit-scrollbar-thumb { background: #27272a; }
   .skeleton {
     @apply bg-previa-surface-hover rounded animate-pulse;
   }
-}
-
-/* ── Subtle page-level grid pattern ────────────────────────────────────────── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image:
-    linear-gradient(rgba(113,113,122,0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(113,113,122,0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
 }
 
 /* ── Fade-in animation ───────────────────────────────────────────────────── */
