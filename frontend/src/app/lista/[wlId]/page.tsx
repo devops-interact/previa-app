@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { List, Plus, Download, Trash2, Pencil, Check, X } from '@/lib/icons'
+import { List, Plus, Download, Trash2, Pencil, Check, X, Upload } from '@/lib/icons'
 import { Sidebar } from '@/components/Sidebar'
 import { Topbar } from '@/components/Topbar'
 import { AuthGuard } from '@/components/AuthGuard'
 import { apiClient } from '@/lib/api-client'
+import { useUploadModal } from '@/contexts/UploadModalContext'
 import type { WatchlistCompany, Watchlist } from '@/types'
 
 export default function ListaDetailPage() {
     const params = useParams()
+    const { openUploadModal } = useUploadModal()
     const router = useRouter()
     const wlId = Number(params.wlId)
     const [watchlist, setWatchlist] = useState<Watchlist | null>(null)
@@ -157,7 +159,7 @@ export default function ListaDetailPage() {
                                 {/* Header */}
                                 <div className="flex items-start justify-between flex-wrap gap-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-previa-accent/10 border border-previa-accent/20 flex items-center justify-center">
+                                        <div className="w-10 h-10 rounded-xl bg-previa-accent-light/60 border border-previa-accent/20 flex items-center justify-center">
                                             <List className="w-5 h-5 text-previa-accent" />
                                         </div>
                                         <div>
@@ -170,14 +172,21 @@ export default function ListaDetailPage() {
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => setAddingCompany(true)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-previa-accent/10 text-previa-accent border border-previa-accent/30 rounded-lg hover:bg-previa-accent/20 transition-all"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-previa-accent-light/60 text-previa-accent border border-previa-accent/30 rounded-lg hover:bg-previa-accent-light transition-all"
                                         >
                                             <Plus className="w-3.5 h-3.5" />
                                             <span>Agregar empresa</span>
                                         </button>
                                         <button
+                                            onClick={() => openUploadModal()}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-previa-muted hover:text-previa-accent bg-previa-surface border border-previa-border rounded-lg hover:bg-previa-accent-light/50 transition-all"
+                                        >
+                                            <Upload className="w-3.5 h-3.5" />
+                                            <span>Subir archivo</span>
+                                        </button>
+                                        <button
                                             onClick={handleExportCSV}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-previa-muted hover:text-previa-ink bg-previa-surface border border-previa-border rounded-lg hover:bg-previa-surface-hover transition-all"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-previa-muted hover:text-previa-accent bg-previa-surface border border-previa-border rounded-lg hover:bg-previa-accent-light/50 transition-all"
                                         >
                                             <Download className="w-3.5 h-3.5" />
                                             <span>Exportar CSV</span>
@@ -194,7 +203,7 @@ export default function ListaDetailPage() {
                                         { label: 'Medio', value: riskCounts['MEDIUM'] || 0, color: 'text-yellow-400' },
                                         { label: 'Limpio', value: riskCounts['CLEAR'] || 0, color: 'text-previa-accent' },
                                     ].map((stat) => (
-                                        <div key={stat.label} className="bg-previa-surface border border-previa-border rounded-xl p-3 text-center">
+                                        <div key={stat.label} className="bg-previa-surface border border-previa-border rounded-xl p-3 text-center hover:bg-previa-accent-light/20 transition-colors">
                                             <span className={`text-xl font-bold ${stat.color}`}>{stat.value}</span>
                                             <p className="text-xs text-previa-muted mt-0.5">{stat.label}</p>
                                         </div>
@@ -203,7 +212,7 @@ export default function ListaDetailPage() {
 
                                 {/* Add company inline form */}
                                 {addingCompany && (
-                                    <div className="bg-previa-surface border border-previa-accent/20 rounded-xl p-4">
+                                    <div className="bg-previa-accent-light/20 border border-previa-accent/20 rounded-xl p-4">
                                         <h3 className="text-sm font-semibold text-previa-ink mb-3">Agregar Empresa</h3>
                                         <div className="flex flex-col sm:flex-row gap-3">
                                             <input
@@ -223,7 +232,7 @@ export default function ListaDetailPage() {
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={handleAddCompany}
-                                                    className="px-4 py-2 text-xs border border-previa-border bg-transparent text-previa-ink font-medium rounded-lg hover:bg-previa-surface-hover hover:border-previa-accent/50 transition-colors"
+                                                    className="px-4 py-2 text-xs border border-previa-border bg-transparent text-previa-ink font-medium rounded-lg hover:bg-previa-accent-light/50 hover:border-previa-accent/50 transition-colors"
                                                 >
                                                     Agregar
                                                 </button>
@@ -263,7 +272,7 @@ export default function ListaDetailPage() {
                                                 </thead>
                                                 <tbody>
                                                     {companies.map((c) => (
-                                                        <tr key={c.id} className="border-b border-previa-border/50 hover:bg-previa-surface-hover transition-colors group">
+                                                        <tr key={c.id} className="border-b border-previa-border/50 hover:bg-previa-accent-light/30 transition-colors group">
                                                             <td className="px-4 py-2.5 text-previa-ink font-mono">{c.rfc}</td>
                                                             <td className="px-4 py-2.5 text-previa-ink max-w-[200px]">
                                                                 {editingId === c.id ? (

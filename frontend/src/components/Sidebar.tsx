@@ -110,7 +110,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
             <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="md:hidden fixed bottom-5 left-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl border border-previa-border bg-previa-surface text-previa-ink shadow-lg hover:bg-previa-surface-hover hover:border-previa-accent/50 active:scale-95 transition-all"
+                className="md:hidden fixed bottom-5 left-4 z-30 flex items-center justify-center w-12 h-12 rounded-xl border border-previa-border bg-previa-surface text-previa-ink shadow-lg hover:bg-previa-accent-light/50 hover:border-previa-accent/50 active:scale-95 transition-all"
                 aria-label="Abrir menú"
             >
                 <Menu className="w-5 h-5" />
@@ -135,13 +135,13 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
             >
                 {/* Logo */}
                 <div className="p-4 sm:p-5 border-b border-previa-border flex items-center justify-between gap-3">
-                    <Link href="/tablero" className="text-lg sm:text-xl font-bold text-previa-accent tracking-tight truncate" onClick={() => setMobileOpen(false)}>
+                    <Link href="/tablero" className="text-lg sm:text-xl font-bold text-previa-accent tracking-tight truncate hover:text-previa-accent-glow transition-colors" onClick={() => setMobileOpen(false)}>
                         Prevify
                     </Link>
                     <button
                         type="button"
                         onClick={() => setMobileOpen(false)}
-                        className="md:hidden p-2 rounded-lg text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover"
+                        className="md:hidden p-2 rounded-lg text-previa-muted hover:text-previa-ink hover:bg-previa-accent-light/50"
                         aria-label="Cerrar menú"
                     >
                         <X className="w-5 h-5" />
@@ -150,7 +150,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
                 {/* User Info */}
                 <div className="p-4 border-b border-previa-border flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-full bg-previa-accent/20 text-previa-accent flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-previa-accent-light/80 text-previa-accent flex items-center justify-center font-semibold text-sm flex-shrink-0">
                         {user.initial}
                     </div>
                     <div className="min-w-0">
@@ -171,8 +171,8 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                             href="/tablero"
                             className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all ${
                                 pathname === '/tablero'
-                                    ? 'bg-previa-accent/10 text-previa-accent font-semibold border border-previa-accent/20'
-                                    : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                                    ? 'bg-previa-nav-active-bg text-previa-nav-active-text font-semibold'
+                                    : 'text-previa-muted hover:text-previa-ink hover:bg-previa-accent-light/50'
                             }`}
                         >
                             <Home className="w-4 h-4" />
@@ -191,14 +191,14 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                             <div className="flex items-center gap-0.5">
                                 <button
                                     onClick={() => setShowManageModal(true)}
-                                    className="p-1 rounded-md hover:bg-previa-surface-hover text-previa-muted hover:text-previa-accent transition-colors"
+                                    className="p-1 rounded-md hover:bg-previa-accent-light/50 text-previa-muted hover:text-previa-accent transition-colors"
                                     title="Gestionar organizaciones"
                                 >
                                     <SlidersHorizontal className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                     onClick={() => setShowNewOrgModal(true)}
-                                    className="p-1 rounded-md hover:bg-previa-surface-hover text-previa-muted hover:text-previa-accent transition-colors"
+                                    className="p-1 rounded-md hover:bg-previa-accent-light/50 text-previa-muted hover:text-previa-accent transition-colors"
                                     title="Nueva organización"
                                 >
                                     <Plus className="w-3.5 h-3.5" />
@@ -215,7 +215,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                         ) : organizations.length === 0 ? (
                             <button
                                 onClick={() => setShowNewOrgModal(true)}
-                                className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-surface-hover transition-all border border-dashed border-previa-border mt-1"
+                                className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-accent-light/50 transition-all border border-dashed border-previa-border mt-1"
                             >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span>Nueva organización</span>
@@ -226,7 +226,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                     <li key={org.id}>
                                         <button
                                             onClick={() => toggleOrg(org.id)}
-                                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-previa-surface-hover transition-colors group"
+                                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-previa-accent-light/50 transition-colors group"
                                         >
                                             <div className="flex items-center space-x-2 min-w-0">
                                                 <Building2 className="w-3.5 h-3.5 text-previa-accent flex-shrink-0" />
@@ -245,8 +245,8 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                                         href={`/organizacion/${org.id}`}
                                                         className={`w-full flex items-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs transition-all ${
                                                             pathname === `/organizacion/${org.id}`
-                                                                ? 'bg-previa-accent/10 text-previa-accent border border-previa-accent/20 font-semibold'
-                                                                : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                                                                ? 'bg-previa-nav-active-bg text-previa-nav-active-text font-semibold'
+                                                                : 'text-previa-muted hover:text-previa-ink hover:bg-previa-accent-light/50'
                                                         }`}
                                                     >
                                                         <LayoutGrid className="w-3 h-3 flex-shrink-0" />
@@ -263,15 +263,15 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                                                 onClick={() => handleWatchlistClick(org, wl)}
                                                                 className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-all ${
                                                                     activeWatchlist === wl.id || pathname === `/lista/${wl.id}`
-                                                                        ? 'bg-previa-accent/10 text-previa-accent border border-previa-accent/20 font-semibold'
-                                                                        : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                                                                        ? 'bg-previa-nav-active-bg text-previa-nav-active-text font-semibold'
+                                                                        : 'text-previa-muted hover:text-previa-ink hover:bg-previa-accent-light/50'
                                                                 }`}
                                                             >
                                                                 <div className="flex items-center space-x-1.5 min-w-0">
                                                                     <List className="w-3 h-3 flex-shrink-0" />
                                                                     <span className="truncate">{wl.name}</span>
                                                                 </div>
-                                                                <span className="text-previa-muted opacity-60 ml-1 flex-shrink-0 font-mono text-xs">
+                                                                <span className={`ml-1 flex-shrink-0 font-mono text-xs ${activeWatchlist === wl.id || pathname === `/lista/${wl.id}` ? 'text-previa-nav-active-text/80' : 'text-previa-muted opacity-60'}`}>
                                                                     {wl.company_count}
                                                                 </span>
                                                             </button>
@@ -282,7 +282,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                                 <li>
                                                     <button
                                                         onClick={() => { setNewWatchlistOrgId(org.id); setShowNewWatchlistModal(true) }}
-                                                        className="w-full flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-surface-hover transition-colors"
+                                                        className="w-full flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-accent-light/50 transition-colors"
                                                     >
                                                         <Plus className="w-3 h-3" />
                                                         <span>Lista de Monitoreo</span>
@@ -309,8 +309,8 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                                     href="/preferencias"
                                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all ${
                                         pathname === '/preferencias'
-                                            ? 'bg-previa-accent/10 text-previa-accent font-semibold border border-previa-accent/20'
-                                            : 'text-previa-muted hover:text-previa-ink hover:bg-previa-surface-hover'
+                                            ? 'bg-previa-nav-active-bg text-previa-nav-active-text font-semibold'
+                                            : 'text-previa-muted hover:text-previa-ink hover:bg-previa-accent-light/50'
                                     }`}
                                 >
                                     <Settings className="w-4 h-4" />

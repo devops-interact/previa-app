@@ -64,7 +64,7 @@ export function Topbar({
                 )}
                 <button
                     onClick={() => openUploadModal(chatContext)}
-                    className="flex items-center justify-center space-x-1.5 px-3 py-2 sm:py-1.5 bg-previa-accent/10 text-previa-accent text-xs rounded-lg border border-previa-accent/30 hover:bg-previa-accent/20 active:scale-[0.97] transition-all flex-1 sm:flex-initial"
+                    className="flex items-center justify-center space-x-1.5 px-3 py-2 sm:py-1.5 bg-previa-accent-light/60 text-previa-accent text-xs rounded-lg border border-previa-accent/30 hover:bg-previa-accent-light active:scale-[0.97] transition-all flex-1 sm:flex-initial"
                 >
                     <Upload className="w-3.5 h-3.5 flex-shrink-0" />
                     <span>Subir</span>

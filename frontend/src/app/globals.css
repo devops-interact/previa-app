@@ -23,7 +23,7 @@ body {
 /* ── Focus-visible ring ───────────────────────────────────────────────────── */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(113, 113, 122, 0.4);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
   border-radius: 6px;
 }
 
@@ -64,7 +64,8 @@ aside:hover ::-webkit-scrollbar-thumb { background: #d4d4d8; }
   .input-cursor {
     @apply bg-previa-background border border-previa-border rounded-lg text-xs text-previa-ink
            placeholder-previa-muted
-           focus:outline-none focus:ring-1 focus:ring-previa-accent/60 focus:border-previa-accent
+           focus:outline-none focus:ring-1 focus:ring-previa-accent/60 focus:border-previa-accent focus:bg-previa-accent-light/30
+           hover:border-previa-accent/40 hover:bg-previa-accent-light/20
            transition-all duration-150;
   }
 

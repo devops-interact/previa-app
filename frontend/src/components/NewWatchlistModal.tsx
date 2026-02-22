@@ -135,7 +135,7 @@ export function NewWatchlistModal({
                         <button
                             type="submit"
                             disabled={loading || !name.trim() || !(orgId ?? selectedOrg?.id)}
-                            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-previa-accent/20 text-previa-accent hover:bg-previa-accent/30 border border-previa-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-previa-accent-light/60 text-previa-accent hover:bg-previa-accent-light border border-previa-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? 'Creando...' : 'Crear Lista'}
                         </button>
