@@ -89,9 +89,9 @@ async def lifespan(app: FastAPI):
     logger.info("Database tables ensured")
 
     from app.data.db.session import AsyncSessionLocal
-    from app.data.db.models import User, SATDataset
+    from app.data.db.models import User, Organization, SATDataset
     from app.api.deps import hash_password
-    from sqlalchemy import select
+    from sqlalchemy import select, func
 
     if ENVIRONMENT == "development" and settings.environment == "development":
         try:
@@ -106,12 +106,34 @@ async def lifespan(app: FastAPI):
                         plan="free",
                     )
                     db.add(demo_user)
+                    await db.flush()
+                    org = Organization(user_id=demo_user.id, name="Mi Organización")
+                    db.add(org)
                     await db.commit()
                     logger.info("Demo user created: %s", settings.demo_user_email)
                 else:
                     logger.info("Demo user already exists: %s", settings.demo_user_email)
         except Exception as e:
             logger.error("Demo user seeding failed: %s", e)
+
+    # Ensure every user has at least one organization (handles demo user, legacy users)
+    try:
+        async with AsyncSessionLocal() as db:
+            subq = (
+                select(User.id)
+                .outerjoin(Organization, User.id == Organization.user_id)
+                .group_by(User.id)
+                .having(func.count(Organization.id) == 0)
+            )
+            users_without_orgs = (await db.execute(subq)).scalars().all()
+            for uid in users_without_orgs:
+                org = Organization(user_id=uid, name="Mi Organización")
+                db.add(org)
+                logger.info("Created default organization for user id=%s", uid)
+            if users_without_orgs:
+                await db.commit()
+    except Exception as e:
+        logger.error("Default org fix failed: %s", e)
     elif ENVIRONMENT == "production":
         try:
             async with AsyncSessionLocal() as db:

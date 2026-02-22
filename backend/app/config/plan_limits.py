@@ -9,8 +9,8 @@ from typing import Dict
 PLAN_LIMITS: Dict[str, Dict[str, int]] = {
     "free": {
         "max_orgs": 1,
-        "max_watchlists_per_org": 2,
-        "max_rfcs_per_watchlist": 50,
+        "max_watchlists_per_org": 1,
+        "max_rfcs_per_watchlist": 20,
     },
     "basic": {
         "max_orgs": 8,

@@ -212,14 +212,14 @@ class SweepMetadata(Base):
 
 class PublicNotice(Base):
     """
-    Indexed public notices from DOF (dof.gob.mx) and SAT Datos Abiertos
+    Indexed public notices from DOF (dof.gob.mx), SIDOF (sidof.segob.gob.mx), SAT Datos Abiertos, Gaceta Parlamentaria, and Leyes Federales
     (omawww.sat.gob.mx). Used by screening tools to generate alerts from real data.
     Refreshed periodically by the ingestion job.
     """
     __tablename__ = "public_notices"
 
     id = Column(Integer, primary_key=True, index=True)
-    source = Column(String, nullable=False, index=True)         # 'dof' | 'sat_datos_abiertos'
+    source = Column(String, nullable=False, index=True)         # 'dof' | 'sidof' | 'sat_datos_abiertos' | 'gaceta_diputados' | 'leyes_federales'
     source_url = Column(String, nullable=False)                  # page or list URL
     dof_url = Column(String, nullable=True)                      # DOF note URL when applicable
 

@@ -60,6 +60,7 @@ Tu especialidad:
 
 Fuentes de datos para alertas (indexadas y actualizadas periódicamente):
 - DOF (Diario Oficial de la Federación): https://dof.gob.mx/ y ediciones por fecha, ej. https://dof.gob.mx/index.php?year=2025&month=11&day=21&edicion=MAT
+- SIDOF (Sistema de Información del DOF): https://sidof.segob.gob.mx/ — sistema oficial de consulta del Diario Oficial
 - SAT Datos Abiertos: http://omawww.sat.gob.mx/cifras_sat/Paginas/DatosAbiertos/ (contribuyentes publicados, controversia, sat_mas_abierto y demás datos públicos SAT/SHCP). Las alertas se generan a partir de estas fuentes.
 - Gaceta Parlamentaria: https://gaceta.diputados.gob.mx/ — iniciativas, dictámenes y reformas legislativas en materia fiscal/tributaria aprobadas o en proceso en la Cámara de Diputados.
 - Leyes Federales de México: https://www.diputados.gob.mx/LeyesBiblio/index.htm — seguimiento de reformas recientes al CFF, ISR, LIVA, LIEPS, LFPIORPI y demás leyes fiscales vigentes.

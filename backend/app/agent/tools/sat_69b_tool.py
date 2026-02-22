@@ -1,7 +1,7 @@
 """
 Previa App — Article 69-B Screening Tool
 Screen RFCs against SAT's Article 69-B lists (EFOS/EDOS).
-Uses indexed data from DOF (dof.gob.mx) and SAT Datos Abiertos; falls back to mock for demo RFCs.
+Uses indexed data from DOF (dof.gob.mx), SIDOF (sidof.segob.gob.mx), and SAT Datos Abiertos; falls back to mock for demo RFCs.
 Supports search by razon_social (company name) as fallback when RFC is not found.
 """
 

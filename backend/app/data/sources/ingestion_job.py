@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.data.db.session import AsyncSessionLocal
 from app.data.db.models import PublicNotice, SATDataset, SweepMetadata
 from app.data.sources.dof_fetcher import DOFFetcher
+from app.data.sources.sidof_fetcher import SIDOFFetcher
 from app.data.sources.sat_datos_abiertos_fetcher import SATDatosAbiertosFetcher
 from app.data.sources.gaceta_fetcher import GacetaDiputadosFetcher
 from app.data.sources.leyes_federales_fetcher import LeyesFederalesFetcher
@@ -51,6 +52,11 @@ async def run_ingestion(
                 dof_notices = await DOFFetcher.run(limit_notices=80)
                 logger.info("DOF: %d notices fetched", len(dof_notices))
                 await _replace_source(db, "dof", dof_notices, now)
+
+                # ── SIDOF (Sistema de Información del DOF) ───────────────────
+                sidof_notices = await SIDOFFetcher.run(limit_notices=60)
+                logger.info("SIDOF: %d notices fetched", len(sidof_notices))
+                await _replace_source(db, "sidof", sidof_notices, now)
                 await _update_sat_dataset(db, "lista_69b")
 
                 # ── Gaceta Parlamentaria ─────────────────────────────────────
