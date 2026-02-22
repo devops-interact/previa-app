@@ -4,13 +4,15 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
     ChevronDown, ChevronRight, Settings, LogOut,
-    Building2, List, Plus, LayoutGrid, Menu, X, RefreshCw, Home,
+    Building2, List, Plus, LayoutGrid, Menu, X, RefreshCw, Home, SlidersHorizontal,
 } from '@/lib/icons'
 import { useState, useEffect } from 'react'
 import type { Organization, Watchlist } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { useOrg } from '@/contexts/OrgContext'
 import { OrganizationModal } from './OrganizationModal'
+import { NewOrganizationModal } from './NewOrganizationModal'
+import { NewWatchlistModal } from './NewWatchlistModal'
 
 interface SidebarProps {
     onWatchlistSelect?: (orgId: number, wlId: number, orgName: string, wlName: string) => void
@@ -44,7 +46,10 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
     } = useOrg()
 
     const [expandedOrgs, setExpandedOrgs] = useState<Set<number>>(new Set())
-    const [orgModal, setOrgModal] = useState<{ open: boolean; initialTab?: 'list' | 'create'; initialWlOrgId?: number }>({ open: false })
+    const [showNewOrgModal, setShowNewOrgModal] = useState(false)
+    const [showNewWatchlistModal, setShowNewWatchlistModal] = useState(false)
+    const [showManageModal, setShowManageModal] = useState(false)
+    const [newWatchlistOrgId, setNewWatchlistOrgId] = useState<number | null>(null)
     const [activeWatchlist, setActiveWatchlist] = useState<number | null>(null)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [sweepStatus, setSweepStatus] = useState<{
@@ -183,13 +188,22 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                             <span className="text-xs font-semibold text-previa-muted uppercase tracking-wider">
                                 Organizaciones
                             </span>
-                            <button
-                                onClick={() => setOrgModal({ open: true, initialTab: 'create' })}
-                                className="p-1 rounded-md hover:bg-previa-surface-hover text-previa-muted hover:text-previa-accent transition-colors"
-                                title="Nueva organización"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-0.5">
+                                <button
+                                    onClick={() => setShowManageModal(true)}
+                                    className="p-1 rounded-md hover:bg-previa-surface-hover text-previa-muted hover:text-previa-accent transition-colors"
+                                    title="Gestionar organizaciones"
+                                >
+                                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={() => setShowNewOrgModal(true)}
+                                    className="p-1 rounded-md hover:bg-previa-surface-hover text-previa-muted hover:text-previa-accent transition-colors"
+                                    title="Nueva organización"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         </div>
 
                         {loadingOrgs ? (
@@ -200,7 +214,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                             </div>
                         ) : organizations.length === 0 ? (
                             <button
-                                onClick={() => setOrgModal({ open: true, initialTab: 'create' })}
+                                onClick={() => setShowNewOrgModal(true)}
                                 className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-surface-hover transition-all border border-dashed border-previa-border mt-1"
                             >
                                 <Plus className="w-3.5 h-3.5" />
@@ -267,7 +281,7 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
 
                                                 <li>
                                                     <button
-                                                        onClick={() => setOrgModal({ open: true, initialTab: 'list', initialWlOrgId: org.id })}
+                                                        onClick={() => { setNewWatchlistOrgId(org.id); setShowNewWatchlistModal(true) }}
                                                         className="w-full flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs text-previa-muted hover:text-previa-accent hover:bg-previa-surface-hover transition-colors"
                                                     >
                                                         <Plus className="w-3 h-3" />
@@ -344,16 +358,26 @@ export function Sidebar({ onWatchlistSelect }: SidebarProps = {}) {
                 </div>
             </aside>
 
-            {orgModal.open && (
+            {showNewOrgModal && (
+                <NewOrganizationModal
+                    onClose={() => setShowNewOrgModal(false)}
+                    onCreated={(org) => { handleOrgCreated(org); setShowNewOrgModal(false) }}
+                />
+            )}
+            {showNewWatchlistModal && (
+                <NewWatchlistModal
+                    organizations={organizations}
+                    defaultOrgId={newWatchlistOrgId}
+                    onClose={() => { setShowNewWatchlistModal(false); setNewWatchlistOrgId(null) }}
+                    onCreated={(orgId, wl) => { handleWatchlistCreated(orgId, wl); setShowNewWatchlistModal(false) }}
+                />
+            )}
+            {showManageModal && (
                 <OrganizationModal
                     organizations={organizations}
-                    initialTab={orgModal.initialTab}
-                    initialWlOrgId={orgModal.initialWlOrgId}
-                    onClose={() => setOrgModal({ open: false })}
-                    onCreated={handleOrgCreated}
+                    onClose={() => setShowManageModal(false)}
                     onDeleted={handleOrgDeleted}
                     onOrgUpdated={handleOrgUpdated}
-                    onWatchlistCreated={handleWatchlistCreated}
                     onWatchlistDeleted={handleWatchlistDeleted}
                     onWatchlistUpdated={handleWatchlistUpdated}
                 />
